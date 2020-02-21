@@ -118,7 +118,7 @@ namespace Pepperdash.Essentials.ColorlightZ6
 
         public void SetBrightness(ushort brightness)
         {
-            var brightnessPercent = brightness/(float) 65535.0;
+            var brightnessPercent = (float) Math.Round(brightness/65535.0f,1);
 
             Debug.Console(0,this,"Brightness Level {0} Percent {1}", brightness, brightnessPercent * 100);
 
