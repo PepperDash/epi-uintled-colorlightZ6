@@ -17,20 +17,21 @@ namespace pepperdash_generic_colorlightZ6_epi.Bridge
 
         public ColorlightZ6JoinMap()
         {
-            Brightness = 0;
-            Preset = 1;
-            ShowOn = 0;
-            ShowOff = 1;
+            Brightness = 1;
+            Preset = 2;
+            ShowOn = 1;
+            ShowOff = 2;
         }
 
         public override void OffsetJoinNumbers(uint joinStart)
         {
-            var joinOffset = joinStart + 1;
-            var props = GetType().GetCType().GetProperties().Where(o => o.PropertyType == typeof (uint)).ToList();
-            foreach (var prop in props)
-            {
-                prop.SetValue(this, (uint) prop.GetValue(this, null) + joinOffset, null);
-            }
+            var joinOffset = joinStart - 1;
+
+            Brightness = Brightness + joinOffset;
+            Preset = Preset + joinOffset;
+            ShowOn = ShowOn + joinOffset;
+            ShowOff = ShowOff + joinOffset;
         }
+
     }
 }
