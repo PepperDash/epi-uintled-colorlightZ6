@@ -1,0 +1,16 @@
+name: Branch Build
+
+on:
+  push:
+    branches:
+      - feature/*
+
+jobs:
+  build_project:
+    needs: update_version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ./.github/actions/pd-build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
