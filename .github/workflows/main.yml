@@ -7,9 +7,7 @@ on:
 
 jobs:
   build_project:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/pd-build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker run --rm --mount type=bind,source="c:/Essentials/",target="c:/project" sspbuilder:v1.0 c:\cihelpers\vsidebuild.exe -Solution "c:\project\pepperdash-generic-colorlightZ6-epi.sln" -BuildAll
