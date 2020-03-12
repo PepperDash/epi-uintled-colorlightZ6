@@ -10,4 +10,4 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - run: docker run --rm sspbuilder:v1.0 c:\cihelpers\vsidebuild.exe -Solution "c:\github\workspace\pepperdash-generic-colorlightZ6-epi.sln" -BuildAll
+      - run: docker run --rm pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution "c:\github\workspace\pepperdash-generic-colorlightZ6-epi.sln" -BuildAll
