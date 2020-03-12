@@ -10,6 +10,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - run: docker run --rm pepperdash/sspbuilder dir
+      - run: docker run --rm pepperdash/sspbuilder
+      - run: docker exec pepperdash/sspbuilder:v1.0 powershell dir
+      - run: docker exec pepperdash/sspbuilder:v1.0 c:\cihelpers\vsidebuild.exe -Solution ${{ env.GITHUB_WORKSPACE }}\eplugin-generic-colorlightZ6\pepperdash-generic-colorlightZ6-epi\pepperdash-generic-colorlightZ6-epi.sln -BuildAll
         env:
           GITHUB_WORKSPACE: ${{env.GITHUB_WORKSPACE}}
