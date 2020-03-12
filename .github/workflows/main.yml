@@ -10,7 +10,6 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - run: echo "${{ env.GITHUB_WORKSPACE }}\pepperdash-generic-colorlightZ6-epi\pepperdash-generic-colorlightZ6-epi.sln"
-      - run: docker run --rm pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution "${{ env.GITHUB_WORKSPACE }}\pepperdash-generic-colorlightZ6-epi\pepperdash-generic-colorlightZ6-epi.sln" -BuildSolutionConfiguration Debug
+      - run: docker run --rm pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution "$($Env:GITHUB_WORKSPACE)\pepperdash-generic-colorlightZ6-epi\pepperdash-generic-colorlightZ6-epi.sln" -BuildSolutionConfiguration Debug
         env:
-          GITHUB_WORKSPACE: GITHUB_WORKSPACE
+          GITHUB_WORKSPACE: ${{env.GITHUB_WORKSPACE}}
