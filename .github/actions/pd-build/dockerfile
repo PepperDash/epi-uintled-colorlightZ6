@@ -1,4 +1,4 @@
-FROM sspbuilder:v1.0
+FROM pepperdash/sspbuilder:v1.0
 
 COPY build.ps1 /build.ps1
 
