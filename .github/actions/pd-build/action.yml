@@ -1,5 +1,0 @@
-name: S# Build
-description: Build Crestron S# Projects using a Docker image
-runs:
-  using: "docker"
-  image: "dockerfile"

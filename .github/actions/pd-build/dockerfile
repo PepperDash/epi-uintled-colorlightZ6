@@ -1,5 +1,0 @@
-FROM pepperdash/sspbuilder:v1.0
-
-COPY build.ps1 /build.ps1
-
-ENTRYPOINT ["powershell.exe","/build.ps1" ]
