@@ -7,7 +7,6 @@ on:
 
 jobs:
   build_project:
-    needs: update_version
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
