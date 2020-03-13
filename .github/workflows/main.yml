@@ -10,5 +10,5 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - run: dir env:
+      - run: Get-ChildItem $Env
       - run: Get-Location
