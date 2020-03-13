@@ -11,4 +11,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: Get-Location
-      - run: docker run --rm pepperdash/sspbuilder Get-Location
+      - run: docker run --rm pepperdash/sspbuilder pwsh -c "${Get-Location}"
