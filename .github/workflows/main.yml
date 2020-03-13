@@ -11,4 +11,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: Get-Location
-      - run: docker run --rm pepperdash/sspbuilder echo $Env:GITHUB_WORKSPACE
+      - run: docker run --rm pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution "$($Env.GITHUB_WORKSPACE)\pepperdash-generic-colorlightz6-epi\pepperdash-generic-colorlightz6-epi.sln" -BuildAll
