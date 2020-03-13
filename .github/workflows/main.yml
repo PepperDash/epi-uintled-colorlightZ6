@@ -10,8 +10,5 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - run: Write-Output "$($Env:workspace)"
-      - run: Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:workspace)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\pepperdash-generic-colorlightz6-epi.sln"" -BuildAll"
-        shell: powershell
-        env:
-            workspace: ${{ env.GITHUB_WORKSPACE }}
+      - run: Write-Output "$($Env:GITHUB_WORKSPACE)"
+      - run: Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\pepperdash-generic-colorlightz6-epi.sln"" -BuildAll
