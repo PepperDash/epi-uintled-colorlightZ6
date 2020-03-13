@@ -9,7 +9,7 @@ env:
   # solution path doesn't need slashes unless there it is multiple folders deep
   SOLUTION_PATH: pepperdash-generic-colorlightz6-epi
   SOLUTION_FILE: pepperdash-generic-colorlightz6-epi.sln
-
+  VERSION: 0.0.0-buildtype-buildnumber
 jobs:
   build_project:
     runs-on: windows-latest
@@ -26,4 +26,6 @@ jobs:
           git submodule sync --recursive
           git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
       #- run: Write-Output "c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"
-      - run: Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildAll"
+
+      - name: Build Solution
+        run: Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildAll"
