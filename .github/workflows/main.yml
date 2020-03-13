@@ -12,6 +12,6 @@ jobs:
       - uses: actions/checkout@v2
       - run: docker run --rm pepperdash/sspbuilder
       - run: docker ps
-      - run: docker exec pepperdash/sspbuilder dir
+      - run: docker exec sspbuilder dir
         env:
           GITHUB_WORKSPACE: ${{env.GITHUB_WORKSPACE}}
