@@ -10,6 +10,5 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
-      - run: Get-ChildItem $Env
       - run: Get-Location
       - run: docker run --rm pepperdash/sspbuilder Get-Location
