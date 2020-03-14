@@ -48,5 +48,5 @@ Write-Output "Updating Assembly Build Versions..."
 Write-Output "Assembly Build Versions Updated"
 
 Write-Output "Exporting VERSION environment variable"
-$Env:VERSION = $newVersionString
+return $newVersionString
 # "version=$newVersionString" | Out-File env.properties -Encoding ASCII
