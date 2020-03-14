@@ -1,4 +1,6 @@
-New-Item -ItemType Directory -Force -Path "$($Env:GITHUB_WORKSPACE)\output"
+$destination = "$($Env:GITHUB_WORKSPACE)\output"
+New-Item -ItemType Directory -Force -Path ($destination)
+Get-ChildItem ($destination)
 $exclusions = @(git submodule foreach --quiet 'echo $name')
 Write-Output "Exclusions $($exclusions)"
 Get-ChildItem -recurse -Path "$($Env:GITHUB_WORKSPACE)" -include @("*.clz", "*.cpz", "*.cplz") | ForEach-Object{
@@ -15,7 +17,7 @@ Get-ChildItem -recurse -Path "$($Env:GITHUB_WORKSPACE)" -include @("*.clz", "*.c
     Write-Output "allowing $($_)"
     $_;
   }
-} | Copy-Item -Destination "$($Env:GITHUB_WORKSPACE)\output"
+} | Copy-Item -Destination ($destination)
 Get-ChildItem "$($Env:GITHUB_WORKSPACE)\output"
 Compress-Archive -Path "$($Env:GITHUB_WORKSPACE)\output\*" -DestinationPath "$($Env:GITHUB_WORKSPACE)\output.zip"
 Get-ChildItem "$($Env:GITHUB_WORKSPACE)\"
