@@ -40,6 +40,6 @@ jobs:
         run: |
           Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildAll"
           New-Item -ItemType Directory -Force -Path "$($Env:GITHUB_WORKSPACE)\output"
-          $exclusions = @(git submodules foreach --quiet 'echo $name')
+          $exclusions = @(git submodule foreach --quiet 'echo $name')
           Get-ChildItem -recurse -Path "$Env:GITHUB_WORKSPACE" -include @("*.clz", "*.cpz", "*.cplz") -exclude $exclusions| Copy-Item -Destination "$($Env:GITHUB_WORKSPACE)\output"
           Invoke-Expression "dir $($Env:GITHUB_WORKSPACE)\output"
