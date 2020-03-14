@@ -10,12 +10,13 @@ env:
   SOLUTION_PATH: pepperdash-generic-colorlightz6-epi
   SOLUTION_FILE: pepperdash-generic-colorlightz6-epi.sln
   VERSION: 0.0.0-buildtype-buildnumber
-  BUILD_TYPE: debug
+  BUILD_TYPE: Debug
 jobs:
   build_project:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repo
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
       - name: Checkout submodules
@@ -25,6 +26,9 @@ jobs:
           auth_header="$(git config --local --get http.https://github.com/.extraheader)"
           git submodule sync --recursive
           git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
+      - name: Set Build to Debug
+        if: contains("master", env.GITHUB_REF)
+        run: Write-Output "::set-env name=BUILD_TYPE::Release"
       - name: Set Version Number
         shell: powershell
         run: |
@@ -38,7 +42,7 @@ jobs:
       - name: Build Solution
         shell: powershell
         run: |
-          Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildAll"
+          Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildSolutionConfiguration $($ENV:BUILD_TYPE)"
           ./.github/scripts/ZipBuildOutput.ps1
       - name: Upload Artifact
         uses: actions/upload-artifact@v1
