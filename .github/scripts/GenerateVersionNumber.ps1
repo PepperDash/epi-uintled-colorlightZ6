@@ -36,7 +36,4 @@ switch -regex ($Env:GITHUB_REF) {
 }
 $newVersionString = "{0}.{1}.{2}-{3}-{4}" -f $newVersion.Major, $newVersion.Minor, ($newVersion.Build + 1), $phase, $Env:GITHUB_RUN_NUMBER
 
-# .\Pepperdash` Core\Pepperdash` Core\Properties\UpdateAssemblyVersion.ps1 $newVersionString
-
 Write-Output $newVersionString
-# "version=$newVersionString" | Out-File env.properties -Encoding ASCII
