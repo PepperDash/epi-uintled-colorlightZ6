@@ -7,7 +7,7 @@ Get-ChildItem -recurse -Path "$($Env:GITHUB_WORKSPACE)" -include @("*.clz", "*.c
   Write-Host "checking $($_)"
   $allowed = $true;
   foreach($exclude in $exclusions) {
-    if((Split-Path $_.FullName -Parent) -ilike $exclude) {
+    if((Split-Path $_.FullName -Parent).contains("$($exclude)")) {
       Write-Host "excluding $($_)"
       $allowed = $false;
       break;

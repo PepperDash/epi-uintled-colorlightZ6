@@ -44,4 +44,4 @@ jobs:
         uses: actions/upload-artifact@v1
         with:
           name: Build
-          path: ${{ env.GITHUB_WORKSPACE }}\output.zip
+          path: ./output.zip
