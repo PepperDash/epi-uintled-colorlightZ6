@@ -27,6 +27,7 @@ jobs:
       #- run: Write-Output "c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"
       - name: Set Version Number
         shell: powershell
+        id: vars
         run: Write-Output "::set-output name=version::./.github/scripts/GenerateVersionNumber.ps1"
       - run: Write-Output ${{ steps.vars.outputs.version }}
       #- name: Build Solution
