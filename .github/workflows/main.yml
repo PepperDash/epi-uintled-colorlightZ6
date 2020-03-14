@@ -28,7 +28,9 @@ jobs:
       - name: Set Version Number
         shell: powershell
         id: vars
-        run: Write-Output "::set-output name=version::./.github/scripts/GenerateVersionNumber.ps1"
+        run: |
+          $version = Invoke-Expression "$(./.github/scripts/GenerateVersionNumber.ps1)"
+          Write-Output "::set-output name=version::$version"
       - run: Write-Output ${{ steps.vars.outputs.version }}
       #- name: Build Solution
       #  run: Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildAll"
