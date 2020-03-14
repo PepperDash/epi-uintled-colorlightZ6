@@ -40,3 +40,8 @@ jobs:
         run: |
           Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildAll"
           ./.github/scripts/ZipBuildOutput.ps1
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: Build
+          path: ${{ env.GITHUB_WORKSPACE}}\output.zip
