@@ -35,11 +35,6 @@ jobs:
         run: |
           Write-Output ${{ env.VERSION }}
           ./.github/scripts/UpdateAssemblyVersion.ps1 ${{ env.VERSION }}
-      - name: Test Exclusions
-        shell: powershell
-        run: |
-          $exclusions = @(git submodule foreach --quiet 'echo $name')
-          Write-Output $exclusions
       - name: Build Solution
         shell: powershell
         run: |
