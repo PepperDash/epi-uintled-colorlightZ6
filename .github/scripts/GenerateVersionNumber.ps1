@@ -1,14 +1,21 @@
 Write-Output "Getting Latest Version"
-$latestVersions = $(git describe --tags $(git rev-list --tags='*.*.*' --max-count=10) --abbrev=0) 
-Write-Output "Latest Versions:" 
-Write-Output $latestVersions
-$latestVersion = ""
-Foreach ($version in $latestVersions) {
-  Write-Output $version
-  if ($version -match '^[1-9]+.\d+.\d+$') {
-    $latestVersion = $version
-    Write-Output "Setting latest version to: $latestVersion"
-    break
+$tagCount = $(git rev-list --tags='*.*.*' --count)
+if ($tagCount = = 0) {
+  Write-Output "No version tags found. Setting version to 0.0.1"
+  $latestVersion = "0.0.1"
+}
+else {
+  $latestVersions = $(git describe --tags $(git rev-list --tags='*.*.*' --max-count=10) --abbrev=0) 
+  Write-Output "Latest Versions:" 
+  Write-Output $latestVersions
+  $latestVersion = ""
+  Foreach ($version in $latestVersions) {
+    Write-Output $version
+    if ($version -match '^[1-9]+.\d+.\d+$') {
+      $latestVersion = $version
+      Write-Output "Setting latest version to: $latestVersion"
+      break
+    }
   }
 }
 Write-Output "Latest: $latestVersion"
