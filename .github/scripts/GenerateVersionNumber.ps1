@@ -1,13 +1,9 @@
-Write-Output "Getting Latest Version"
 $tagCount = $(git rev-list --tags='*.*.*' --count)
 if ($tagCount -eq 0) {
-  Write-Output "No version tags found. Setting version to 0.0.0"
   $latestVersion = "0.0.0"
 }
 else {
   $latestVersions = $(git describe --tags $(git rev-list --tags='*.*.*' --max-count=10) --abbrev=0) 
-  Write-Output "Latest Versions:" 
-  Write-Output $latestVersions
   $latestVersion = ""
   Foreach ($version in $latestVersions) {
     Write-Output $version
@@ -18,8 +14,6 @@ else {
     }
   }
 }
-Write-Output "Latest: $latestVersion"
-Write-Output "Incrementing Version"
 $newVersion = [version]$latestVersion
 $phase = ""
 $newVersionString = ""
@@ -41,12 +35,8 @@ switch -regex ($Env:GITHUB_REF) {
   }
 }
 $newVersionString = "{0}.{1}.{2}-{3}-{4}" -f $newVersion.Major, $newVersion.Minor, ($newVersion.Build + 1), $phase, $Env:GITHUB_RUN_NUMBER
-Write-Output "Incremented Version: $newVersionString"
 
-Write-Output "Updating Assembly Build Versions..."
 # .\Pepperdash` Core\Pepperdash` Core\Properties\UpdateAssemblyVersion.ps1 $newVersionString
-Write-Output "Assembly Build Versions Updated"
 
-Write-Output "Exporting VERSION environment variable"
-return $newVersionString
+Write-Output $newVersionString
 # "version=$newVersionString" | Out-File env.properties -Encoding ASCII
