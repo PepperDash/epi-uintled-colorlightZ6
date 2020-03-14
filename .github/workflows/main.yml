@@ -44,20 +44,4 @@ jobs:
         shell: powershell
         run: |
           Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildAll"
-          New-Item -ItemType Directory -Force -Path "$($Env:GITHUB_WORKSPACE)\output"
-          $exclusions = @(git submodule foreach --quiet 'echo $name')
-          $files = Get-ChildItem -recurse -Path "$Env:GITHUB_WORKSPACE" -include @("*.clz", "*.cpz", "*.cplz") |
-          %{
-            $allowed = $true;
-            foreach($exclude in $exclusions) {
-              if((Split-Path $_.FullName -Parent) -ilike $exclude) {
-                $allowed = $false;
-                break;
-                }
-              }
-            if($allowed) {
-              $_;
-            }
-          } | Copy-Item -Destination "$($Env:GITHUB_WORKSPACE)\output"
-          Invoke-Expression "dir $($Env:GITHUB_WORKSPACE)\output"
-          Invoke-Expression "Compress-Archive -Path ""$($Env:GITHUB_WORKSPACE)\output\*"" -DestinationPath ""$($Env:GITHUB_WORKSPACE\output.zip)"" "
+          ./.github/scripts/ZipBuildOutput.ps1
