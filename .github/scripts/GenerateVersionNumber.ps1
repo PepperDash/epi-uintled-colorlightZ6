@@ -1,8 +1,8 @@
 Write-Output "Getting Latest Version"
 $tagCount = $(git rev-list --tags='*.*.*' --count)
-if ($tagCount = = 0) {
-  Write-Output "No version tags found. Setting version to 0.0.1"
-  $latestVersion = "0.0.1"
+if ($tagCount -eq 0) {
+  Write-Output "No version tags found. Setting version to 0.0.0"
+  $latestVersion = "0.0.0"
 }
 else {
   $latestVersions = $(git describe --tags $(git rev-list --tags='*.*.*' --max-count=10) --abbrev=0) 
