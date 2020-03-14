@@ -26,6 +26,7 @@ jobs:
           git submodule sync --recursive
           git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
       #- run: Write-Output "c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"
-
-      - name: Build Solution
-        run: Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildAll"
+      - run: ./.github/scripts/GenerateVersionNumber.ps1
+      - run: Write-Output "$($Env:VERSION)"
+      #- name: Build Solution
+      #  run: Invoke-Expression "docker run --rm --mount type=bind,source=""$($Env:GITHUB_WORKSPACE)"",target=""c:/project"" pepperdash/sspbuilder c:\cihelpers\vsidebuild.exe -Solution ""c:\project\$($Env:SOLUTION_PATH)\$($Env:SOLUTION_FILE)"" -BuildAll"
