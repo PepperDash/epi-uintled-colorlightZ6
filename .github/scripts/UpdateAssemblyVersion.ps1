@@ -1,6 +1,6 @@
 ﻿function Update-SourceVersion {
     Param ([string]$Version)
-    $fullVersion = $Version
+    #$fullVersion = $Version
     $baseVersion = [regex]::Match($Version, "(\d+.\d+.\d+).*").captures.groups[1].value
     $NewAssemblyVersion = ‘AssemblyVersion("‘ + $baseVersion + ‘.*")’
     Write-Output "AssemblyVersion = $NewAssemblyVersion"
@@ -22,7 +22,7 @@
 
 function Update-AllAssemblyInfoFiles ( $version ) {
     foreach ($file in “AssemblyInfo.cs”, “AssemblyInfo.vb” ) {
-        get-childitem -recurse | Where-Object { $_.Name -eq $file } | Update-SourceVersion $version ;
+        get-childitem -Path $Env:GITHUB_WORKSPACE -recurse | Where-Object { $_.Name -eq $file } | Update-SourceVersion $version ;
     }
 }
 
