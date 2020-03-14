@@ -29,6 +29,7 @@ jobs:
         shell: powershell
         id: vars
         run: |
+          Write-Output "$($Env:GITHUB_REF)"
           $version = ./.github/scripts/GenerateVersionNumber.ps1
           Write-Output "::set-output name=version::$version"
       - run: Write-Output ${{ steps.vars.outputs.version }}
