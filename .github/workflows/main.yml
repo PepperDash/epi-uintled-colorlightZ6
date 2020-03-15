@@ -59,7 +59,7 @@ jobs:
         with:
           tag_name: v${{ env.VERSION  }}
           release_name: v${{ env.VERSION }}
-          prerelease: ${{contains(debug, env.BUILD_TYPE)}}
+          prerelease: ${{contains('debug', env.BUILD_TYPE)}}
       - name: Upload 
         id: upload_release
         uses: actions/upload-release-asset@v1
