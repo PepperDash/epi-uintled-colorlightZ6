@@ -1,50 +1,28 @@
 ﻿using System;
-using System.Globalization;
 using System.Linq;
-using System.Text;
-using Crestron.SimplSharp;                          				// For Basic SIMPL# Classes
-using Crestron.SimplSharpPro; // For Basic SIMPL#Pro classes
+using Crestron.SimplSharp;
+using Crestron.SimplSharpPro.CrestronThread;
 using Crestron.SimplSharpPro.DeviceSupport;
-using Newtonsoft.Json;
 using PepperDash.Core;
 using PepperDash.Essentials.Core;
-using PepperDash.Essentials;
-using PepperDash.Essentials.Bridges;
-using PepperDash.Essentials.Core.Config;
-using PepperDash.Essentials.Core.Devices;
-using pepperdash_generic_colorlightZ6_epi;
-using pepperdash_generic_colorlightZ6_epi.Bridge;
+using PepperDash.Essentials.Core.Bridges;
+using PepperDash.Essentials.Generic.ColorlightZ6;
+using PepperDash.Essentials.Generic.ColorlightZ6.Bridge;
 
-namespace Pepperdash.Essentials.ColorlightZ6
+namespace Pepperdash.Essentials.Generic.ColorlightZ6
 {
-    public class ColorlightZ6Controller:ReconfigurableDevice, IBridge
+    public class ColorlightZ6Controller:EssentialsBridgeableDevice
     {
+        private Thread _queueProcess;
+        private readonly CrestronQueue<byte[]> _myQueue = new CrestronQueue<byte[]>(100); 
         private CTimer _heartbeatTimer;
         private const long HeartbeatTime = 1000;
         private readonly ushort _id;
 
-        private readonly ColorlightZ6JoinMap _joinMap = new ColorlightZ6JoinMap();
-
         public IBasicCommunication Communications { get; private set; }
 
-        public static void LoadPlugin()
+        public ColorlightZ6Controller(string key, string name, IBasicCommunication comm, ColorlightZ6Properties config):base(key, name)
         {
-            Debug.Console(0, "Loading Colorlight Z6 plugin...");
-            PepperDash.Essentials.Core.DeviceFactory.AddFactoryForType("colorlightz6", BuildDevice);
-        }
-
-        public static ColorlightZ6Controller BuildDevice(DeviceConfig dc)
-        {
-            Debug.Console(0, "Creating Colorlight Z6 controller...");
-            var comm = CommFactory.CreateCommForDevice(dc);
-            var device = new ColorlightZ6Controller(comm, dc);
-
-            return device;
-        }
-
-        public ColorlightZ6Controller(IBasicCommunication comm, DeviceConfig dc):base(dc)
-        {
-            
             Communications = comm;
 
             var socket = Communications as ISocketStatus;
@@ -56,16 +34,31 @@ namespace Pepperdash.Essentials.ColorlightZ6
 
             Communications.BytesReceived += CommunicationsOnBytesReceived;
 
-            var props = JsonConvert.DeserializeObject<ColorlightZ6Properties>(dc.Properties.ToString());
-
-            _id = props.Id;
+            _id = config.Id;
 
             Debug.Console(0,this, "Creating Colorlight Z6 controller with id {0}", _id);
         }
 
         private void CommunicationsOnBytesReceived(object sender, GenericCommMethodReceiveBytesArgs genericCommMethodReceiveBytesArgs)
         {
-            Debug.Console(0,this,"Device Response: {0}", BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes));  
+            Debug.Console(0,this,"Device Response: {0}", BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes));
+
+            _myQueue.Enqueue(genericCommMethodReceiveBytesArgs.Bytes);
+
+            if (_queueProcess == null || _queueProcess.ThreadState == Thread.eThreadStates.ThreadFinished) return;
+
+            _queueProcess = new Thread(ProcessQueue, null);
+        }
+
+        private object ProcessQueue(object obj)
+        {
+            while (!_myQueue.IsEmpty)
+            {
+                var myResponse = _myQueue.Dequeue();
+
+                Debug.Console(2, this, "response: {0}", myResponse);
+            }
+            return null;
         }
 
         public override bool CustomActivate()
@@ -97,23 +90,38 @@ namespace Pepperdash.Essentials.ColorlightZ6
             Communications.SendBytes(new byte[]{0x99, 0x99, 0x04, 0x00});
         }
 
-        public void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey)
+        public override void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge)
         {
             Debug.Console(0, this, "Connecting to SIMPL Bridge with joinStart {0}", joinStart);
 
-            _joinMap.OffsetJoinNumbers(joinStart);
+            var joinMap = new ColorlightZ6JoinMap(joinStart);
 
-            Debug.Console(0, this, "Mapping SetBrightness to join {0}", _joinMap.Brightness);
-            trilist.SetUShortSigAction(_joinMap.Brightness, SetBrightness);
+            if (bridge != null)
+            {
+                bridge.AddJoinMap(Key, joinMap);
+            }
 
-            Debug.Console(0, this, "Mapping RecallPreset to join {0}", _joinMap.Preset);
-            trilist.SetUShortSigAction(_joinMap.Preset, RecallPreset);
+            var customJoins = JoinMapHelper.TryGetJoinMapAdvancedForDevice(joinMapKey);
 
-            Debug.Console(0, this, "Mapping SetShowOn to join {0}", _joinMap.ShowOn);
-            trilist.SetBoolSigAction(_joinMap.ShowOn, SetShowOn);
+            if (customJoins != null)
+            {
+                joinMap.SetCustomJoinData(customJoins);
+            }
 
-            Debug.Console(0, this, "Mapping SetShowOff to join {0}", _joinMap.ShowOff);
-            trilist.SetBoolSigAction(_joinMap.ShowOff, SetShowOff);
+            Debug.Console(1, "Linking to Trilist '{0}'", trilist.ID.ToString("X"));
+            Debug.Console(0, "Linking to Bridge Type {0}", GetType().Name);
+
+            
+            trilist.SetUShortSigAction(joinMap.Brightness.JoinNumber, SetBrightness);
+
+            
+            trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset);
+
+            
+            trilist.SetBoolSigAction(joinMap.ShowOn.JoinNumber, SetShowOn);
+
+          
+            trilist.SetBoolSigAction(joinMap.ShowOff.JoinNumber, SetShowOff);
         }
 
         public void SetBrightness(ushort brightness)

@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Crestron.SimplSharp;
-using PepperDash.Core;
+﻿using PepperDash.Core;
 
-namespace pepperdash_generic_colorlightZ6_epi
+namespace PepperDash.Essentials.Generic.ColorlightZ6
 {
     public class ColorlightZ6Properties
     {

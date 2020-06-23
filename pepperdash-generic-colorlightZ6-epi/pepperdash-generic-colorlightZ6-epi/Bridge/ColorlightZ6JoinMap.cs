@@ -1,36 +1,47 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Crestron.SimplSharp;
-using Crestron.SimplSharp.Reflection;
-using PepperDash.Essentials.Core;
+﻿using PepperDash.Essentials.Core;
 
-namespace pepperdash_generic_colorlightZ6_epi.Bridge
+namespace PepperDash.Essentials.Generic.ColorlightZ6.Bridge
 {
-    public class ColorlightZ6JoinMap:JoinMapBase
+    public class ColorlightZ6JoinMap : JoinMapBaseAdvanced
     {
-        public uint Brightness { get; set; }
-        public uint Preset { get; set; }
-        public uint ShowOn { get; set; }
-        public uint ShowOff { get; set; }
+        [JoinName("brightness")] public JoinDataComplete Brightness =
+            new JoinDataComplete(new JoinData {JoinNumber = 1, JoinSpan = 1},
+                new JoinMetadata
+                {
+                    Label = "Brightness control",
+                    JoinCapabilities = eJoinCapabilities.FromSIMPL,
+                    JoinType = eJoinType.Analog
+                });
 
-        public ColorlightZ6JoinMap()
+        [JoinName("preset")] public JoinDataComplete Preset =
+            new JoinDataComplete(new JoinData {JoinNumber = 2, JoinSpan = 1},
+                new JoinMetadata
+                {
+                    Label = "Preset Recall",
+                    JoinCapabilities = eJoinCapabilities.FromSIMPL,
+                    JoinType = eJoinType.Analog
+                });
+
+        [JoinName("showOn")] public JoinDataComplete ShowOn =
+            new JoinDataComplete(new JoinData {JoinNumber = 1, JoinSpan = 1},
+                new JoinMetadata
+                {
+                    Label = "Show On",
+                    JoinCapabilities = eJoinCapabilities.FromSIMPL,
+                    JoinType = eJoinType.Digital
+                });
+
+        [JoinName("showOff")] public JoinDataComplete ShowOff =
+            new JoinDataComplete(new JoinData {JoinNumber = 1, JoinSpan = 1},
+                new JoinMetadata
+                {
+                    Label = "Show Off",
+                    JoinCapabilities = eJoinCapabilities.FromSIMPL,
+                    JoinType = eJoinType.Digital
+                });
+
+        public ColorlightZ6JoinMap(uint joinStart) : base(joinStart, typeof (ColorlightZ6JoinMap))
         {
-            Brightness = 1;
-            Preset = 2;
-            ShowOn = 1;
-            ShowOff = 2;
-        }
-
-        public override void OffsetJoinNumbers(uint joinStart)
-        {
-            var joinOffset = joinStart - 1;
-
-            Brightness = Brightness + joinOffset;
-            Preset = Preset + joinOffset;
-            ShowOn = ShowOn + joinOffset;
-            ShowOff = ShowOff + joinOffset;
         }
 
     }
