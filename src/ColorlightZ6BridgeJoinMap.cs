@@ -3,8 +3,46 @@
 namespace ColorlightZ6
 {
     public class ColorlightZ6JoinMap : JoinMapBaseAdvanced
-    {
-        [JoinName("Brightness")] public JoinDataComplete Brightness =
+	{
+		#region Digital Joins
+
+		[JoinName("ShowOff")]
+		public JoinDataComplete ShowOff =
+			new JoinDataComplete(
+			new JoinData
+			{
+				JoinNumber = 1,
+				JoinSpan = 1
+			},
+			new JoinMetadata
+			{
+				Description = "Show Off",
+				JoinCapabilities = eJoinCapabilities.FromSIMPL,
+				JoinType = eJoinType.Digital
+			});
+
+
+		[JoinName("ShowOn")]
+		public JoinDataComplete ShowOn =
+			new JoinDataComplete(
+			new JoinData
+			{
+				JoinNumber = 2,
+				JoinSpan = 1
+			},
+			new JoinMetadata
+			{
+				Description = "Show On",
+				JoinCapabilities = eJoinCapabilities.FromSIMPL,
+				JoinType = eJoinType.Digital
+			});
+		
+		#endregion
+
+
+		#region Analog Joins
+
+		[JoinName("Brightness")] public JoinDataComplete Brightness =
             new JoinDataComplete(
 				new JoinData
 				{
@@ -32,33 +70,10 @@ namespace ColorlightZ6
                     JoinType = eJoinType.Analog
                 });
 
-        [JoinName("ShowOn")] public JoinDataComplete ShowOn =
-            new JoinDataComplete(
-				new JoinData
-				{
-					JoinNumber = 1, 
-					JoinSpan = 1
-				},
-                new JoinMetadata
-                {
-                    Description = "Show On",
-                    JoinCapabilities = eJoinCapabilities.FromSIMPL,
-                    JoinType = eJoinType.Digital
-                });
+		#endregion
 
-        [JoinName("ShowOff")] public JoinDataComplete ShowOff =
-            new JoinDataComplete(
-				new JoinData
-				{
-					JoinNumber = 1, 
-					JoinSpan = 1
-				},
-                new JoinMetadata
-                {
-                    Description = "Show Off",
-                    JoinCapabilities = eJoinCapabilities.FromSIMPL,
-                    JoinType = eJoinType.Digital
-                });
+
+		#region Serial joins
 
 		[JoinName("Name")]
 		public JoinDataComplete DeviceName = new JoinDataComplete(
@@ -74,7 +89,9 @@ namespace ColorlightZ6
 				JoinType = eJoinType.Serial
 			});
 
-        public ColorlightZ6JoinMap(uint joinStart) 
+		#endregion
+
+		public ColorlightZ6JoinMap(uint joinStart) 
 			: base(joinStart, typeof (ColorlightZ6JoinMap))
         {
         }
