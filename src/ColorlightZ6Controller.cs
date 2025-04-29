@@ -110,24 +110,28 @@ namespace ColorlightZ6
 			Debug.Console(1, "Linking to Trilist '{0}'", trilist.ID.ToString("X"));
 			Debug.Console(0, "Linking to Bridge Type {0}", GetType().Name);
 
+			trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
 
+			trilist.SetSigTrueAction(joinMap.ShowOn.JoinNumber, SetShowOn);
+			trilist.SetSigTrueAction(joinMap.ShowOff.JoinNumber, SetShowOff);
+			trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset); 
 			trilist.SetUShortSigAction(joinMap.Brightness.JoinNumber, SetBrightness);
 
+			trilist.OnlineStatusChange += (o, a) =>
+			{
+				if (!a.DeviceOnLine) return;
 
-			trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset);
+				trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
 
 
-			trilist.SetBoolSigAction(joinMap.ShowOn.JoinNumber, SetShowOn);
-
-
-			trilist.SetBoolSigAction(joinMap.ShowOff.JoinNumber, SetShowOff);
+			};
 		}
 
 		public void SetBrightness(ushort brightness)
 		{
 			var brightnessPercent = (float)Math.Round(brightness / 65535.0f, 1);
 
-			Debug.Console(0, this, "Brightness Level {0} Percent {1}", brightness, brightnessPercent * 100);
+			Debug.Console(1, this, "Brightness Level {0} Percent {1}", brightness, brightnessPercent * 100);
 
 			var brightnessBytes = BitConverter.GetBytes(brightnessPercent);
 
@@ -139,7 +143,7 @@ namespace ColorlightZ6
 
 			var command = commandBase.Concat(brightnessBytes).ToArray();
 
-			Debug.Console(0, this, "Brightness Command {0}", BitConverter.ToString(command));
+			Debug.Console(1, this, "Brightness Command {0}", BitConverter.ToString(command));
 
 			Communications.SendBytes(command);
 		}
@@ -156,7 +160,7 @@ namespace ColorlightZ6
 			Communications.SendBytes(command);
 		}
 
-		public void SetShowOn(bool notUsed)
+		public void SetShowOn()
 		{
 			var command = new byte[]
             {
@@ -167,7 +171,7 @@ namespace ColorlightZ6
 			Communications.SendBytes(command);
 		}
 
-		public void SetShowOff(bool notUsed)
+		public void SetShowOff()
 		{
 			var command = new byte[]
             {
