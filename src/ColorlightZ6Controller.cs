@@ -9,7 +9,7 @@ using PepperDash.Essentials.Core.Bridges;
 
 namespace ColorlightZ6
 {
-	public class ColorlightZ6Controller : EssentialsBridgeableDevice
+	public class ColorlightZ6Controller : EssentialsBridgeableDevice, ICommunicationMonitor
 	{
 		private Thread _queueProcess;
 		private readonly CrestronQueue<byte[]> _myQueue = new CrestronQueue<byte[]>(100);
@@ -18,6 +18,8 @@ namespace ColorlightZ6
 		private readonly ushort _id;
 
 		public IBasicCommunication Communications { get; private set; }
+		public StatusMonitorBase CommunicationMonitor { get; private set; }
+
 
 		public ColorlightZ6Controller(string key, string name, IBasicCommunication comm, ColorlightZ6Properties config)
 			: base(key, name)
@@ -32,6 +34,8 @@ namespace ColorlightZ6
 			}
 
 			Communications.BytesReceived += CommunicationsOnBytesReceived;
+			CommunicationMonitor = new GenericCommunicationMonitor(this, Communications, 45000, 180000, 300000, "");
+			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
 
 			_id = config.Id;
 
@@ -47,6 +51,11 @@ namespace ColorlightZ6
 			if (_queueProcess == null || _queueProcess.ThreadState == Thread.eThreadStates.ThreadFinished) return;
 
 			_queueProcess = new Thread(ProcessQueue, null);
+		}
+
+		private void CommunicationMonitor_StatusChage(object sender, MonitorStatusChangeEventArgs args)
+		{
+			CommunicationMonitor.IsOnlineFeedback.FireUpdate();
 		}
 
 		private object ProcessQueue(object obj)
@@ -111,6 +120,11 @@ namespace ColorlightZ6
 			Debug.Console(0, "Linking to Bridge Type {0}", GetType().Name);
 
 			trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
+
+			if (CommunicationMonitor != null)
+			{
+				CommunicationMonitor.IsOnlineFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsOnline.JoinNumber]);
+			}
 
 			trilist.SetSigTrueAction(joinMap.ShowOn.JoinNumber, SetShowOn);
 			trilist.SetSigTrueAction(joinMap.ShowOff.JoinNumber, SetShowOff);

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "epi-colorlight-Z6", "epi-colorlight-Z6.csproj", "{8F8B7548-7AE3-4899-9B3B-5877767F4984}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "epi-colorlight-Z6.3Series", "src\epi-colorlight-Z6.3Series.csproj", "{8F8B7548-7AE3-4899-9B3B-5877767F4984}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

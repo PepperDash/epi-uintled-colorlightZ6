@@ -36,6 +36,20 @@ namespace ColorlightZ6
 				JoinCapabilities = eJoinCapabilities.FromSIMPL,
 				JoinType = eJoinType.Digital
 			});
+
+		[JoinName("IsOnline")]
+		public JoinDataComplete IsOnline = new JoinDataComplete(
+			new JoinData
+			{
+				JoinNumber = 50,
+				JoinSpan = 1
+			},
+			new JoinMetadata
+			{
+				Description = "Is Online",
+				JoinCapabilities = eJoinCapabilities.ToSIMPL,
+				JoinType = eJoinType.Digital
+			});
 		
 		#endregion
 
