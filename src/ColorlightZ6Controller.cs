@@ -13,8 +13,8 @@ namespace ColorlightZ6
 	{
 		private Thread _queueProcess;
 		private readonly CrestronQueue<byte[]> _myQueue = new CrestronQueue<byte[]>(100);
-		private CTimer _heartbeatTimer;
-		private const long HeartbeatTime = 1000;
+		//private CTimer _heartbeatTimer;
+		private const long HeartbeatTime = 30000;
 		private readonly ushort _id;
 
 		public IBasicCommunication Communications { get; private set; }
@@ -27,20 +27,29 @@ namespace ColorlightZ6
 			Communications = comm;
 
 			var socket = Communications as ISocketStatus;
-
 			if (socket != null)
 			{
 				socket.ConnectionChange += SocketOnConnectionChange;
 			}
 
 			Communications.BytesReceived += CommunicationsOnBytesReceived;
-			CommunicationMonitor = new GenericCommunicationMonitor(this, Communications, 45000, 180000, 300000, "");
+			CommunicationMonitor = new GenericCommunicationMonitor(this, Communications, HeartbeatTime, 180000, 300000, SendHeartbeat);
 			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
 
 			_id = config.Id;
 
 			Debug.Console(0, this, "Creating Colorlight Z6 controller with id {0}", _id);
 		}
+
+		public override void Initialize()
+		{
+			Debug.Console(1, this, "Activating Colorlight Z6 {0}", _id);
+			
+			Communications.Connect();
+			CommunicationMonitor.Start();
+
+			base.Initialize();
+		}	
 
 		private void CommunicationsOnBytesReceived(object sender, GenericCommMethodReceiveBytesArgs genericCommMethodReceiveBytesArgs)
 		{
@@ -51,6 +60,23 @@ namespace ColorlightZ6
 			if (_queueProcess == null || _queueProcess.ThreadState == Thread.eThreadStates.ThreadFinished) return;
 
 			_queueProcess = new Thread(ProcessQueue, null);
+		}
+
+		private void SocketOnConnectionChange(object sender, GenericSocketStatusChageEventArgs genericSocketStatusChageEventArgs)
+		{
+			//if (genericSocketStatusChageEventArgs.Client.IsConnected)
+			//{
+			//    if (_heartbeatTimer == null)
+			//    {
+			//        _heartbeatTimer = new CTimer(o => SendHeartbeat(), null, 0, HeartbeatTime);
+			//    }
+
+			//    return;
+			//}
+
+			//_heartbeatTimer.Stop();
+			//_heartbeatTimer.Dispose();
+			//_heartbeatTimer = null;
 		}
 
 		private void CommunicationMonitor_StatusChage(object sender, MonitorStatusChangeEventArgs args)
@@ -67,37 +93,8 @@ namespace ColorlightZ6
 				Debug.Console(2, this, "response: {0}", myResponse);
 			}
 			return null;
-		}
-
-		public override bool CustomActivate()
-		{
-			Debug.Console(0, this, "Activating Colorlight Z6 {0}", _id);
-			Communications.Connect();
-			return true;
-		}
-
-		private void SocketOnConnectionChange(object sender, GenericSocketStatusChageEventArgs genericSocketStatusChageEventArgs)
-		{
-			if (genericSocketStatusChageEventArgs.Client.IsConnected)
-			{
-				if (_heartbeatTimer == null)
-				{
-					_heartbeatTimer = new CTimer(SendHeartbeat, null, 0, HeartbeatTime);
-				}
-
-				return;
-			}
-
-			_heartbeatTimer.Stop();
-			_heartbeatTimer.Dispose();
-			_heartbeatTimer = null;
-		}
-
-		private void SendHeartbeat(object o)
-		{
-			Communications.SendBytes(new byte[] { 0x99, 0x99, 0x04, 0x00 });
-		}
-
+		}	
+		
 		public override void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge)
 		{
 			Debug.Console(0, this, "Connecting to SIMPL Bridge with joinStart {0}", joinStart);
@@ -141,6 +138,29 @@ namespace ColorlightZ6
 			};
 		}
 
+		public void SendBytes(byte[] bytes)
+		{
+			if (bytes == null)
+			{
+				Debug.Console(2, this, "SendBytes: command bytes are null" );
+				return;
+			}
+
+			if (!Communications.IsConnected)
+			{
+				Debug.Console(2, this, "SendBytes: communications not connected, attempting connection...");
+				Communications.Connect();
+			}
+
+			Communications.SendBytes(bytes);
+		}
+
+		private void SendHeartbeat()
+		{
+			var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
+			SendBytes(command);
+		}
+
 		public void SetBrightness(ushort brightness)
 		{
 			var brightnessPercent = (float)Math.Round(brightness / 65535.0f, 1);
@@ -159,7 +179,7 @@ namespace ColorlightZ6
 
 			Debug.Console(1, this, "Brightness Command {0}", BitConverter.ToString(command));
 
-			Communications.SendBytes(command);
+			SendBytes(command);
 		}
 
 		public void RecallPreset(ushort preset)
@@ -170,8 +190,9 @@ namespace ColorlightZ6
                 0x00, 0x00, 0x00, (byte) preset
             };
 
-			Debug.Console(0, this, "Preset Command {0}", BitConverter.ToString(command));
-			Communications.SendBytes(command);
+			Debug.Console(1, this, "Preset Command {0}", BitConverter.ToString(command));
+			
+			SendBytes(command);
 		}
 
 		public void SetShowOn()
@@ -182,7 +203,7 @@ namespace ColorlightZ6
                 0x00, 0x00, 0x00, 0x01
             };
 
-			Communications.SendBytes(command);
+			SendBytes(command);
 		}
 
 		public void SetShowOff()
@@ -193,7 +214,7 @@ namespace ColorlightZ6
                 0x00, 0x00, 0x00, 0x00
             };
 
-			Communications.SendBytes(command);
+			SendBytes(command);
 		}
 	}
 }
