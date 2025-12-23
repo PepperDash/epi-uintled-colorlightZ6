@@ -2,14 +2,15 @@
 using PepperDash.Core;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Config;
+using PepperDash.Essentials.Plugins.Colorlight.Z6;
 
-namespace ColorlightZ6
+namespace Pepperdash.Essentials.Plugins.Colorlight.Z6
 {
     public class PluginFactory: EssentialsPluginDeviceFactory<ColorlightZ6Controller>
     {
         public PluginFactory()
         {
-            MinimumEssentialsFrameworkVersion = "1.5.5";
+            MinimumEssentialsFrameworkVersion = "2.24.2";
 
             TypeNames = new List<string>{"colorlightz6"};
         }
@@ -18,12 +19,12 @@ namespace ColorlightZ6
 
         public override EssentialsDevice BuildDevice(DeviceConfig dc)
         {
-			Debug.Console(1, "[{0}] Factory Attempting to create new device from type: {1}", dc.Key, dc.Type);
+			Debug.LogDebug("[{0}] Factory Attempting to create new device from type: {1}", dc.Key, dc.Type);
 
             var config = dc.Properties.ToObject<ColorlightZ6Properties>();
 	        if (config == null)
 	        {
-				Debug.Console(0, "[{0}] Factory: failed to read properties config for {1}", dc.Key, dc.Name);
+				Debug.LogInformation("[{0}] Factory: failed to read properties config for {1}", dc.Key, dc.Name);
 				return null;
 	        }
 
@@ -31,7 +32,7 @@ namespace ColorlightZ6
 	        
 			if(comm != null) return new ColorlightZ6Controller(dc.Key, dc.Name, comm, config);
 
-			Debug.Console(0, "[{0}] Factory Notice: No control object present for device {1}", dc.Key, dc.Name);
+			Debug.LogInformation("[{0}] Factory Notice: No control object present for device {1}", dc.Key, dc.Name);
 			return null;
         }
 

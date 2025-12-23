@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using PepperDash.Core;
 
-namespace ColorlightZ6
+namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 {
     public class ColorlightZ6Properties
     {
