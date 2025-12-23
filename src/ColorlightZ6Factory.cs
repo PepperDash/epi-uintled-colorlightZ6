@@ -1,10 +1,9 @@
-﻿using System.Collections.Generic;
-using PepperDash.Core;
+﻿using PepperDash.Core;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Config;
-using PepperDash.Essentials.Plugins.Colorlight.Z6;
+using System.Collections.Generic;
 
-namespace Pepperdash.Essentials.Plugins.Colorlight.Z6
+namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 {
     public class PluginFactory: EssentialsPluginDeviceFactory<ColorlightZ6Controller>
     {

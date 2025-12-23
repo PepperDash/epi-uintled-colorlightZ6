@@ -1,13 +1,12 @@
-﻿using System;
-using System.Linq;
-using Crestron.SimplSharp;
+﻿using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.CrestronThread;
 using Crestron.SimplSharpPro.DeviceSupport;
-using Pepperdash.Essentials.Plugins.Colorlight.Z6;
 using PepperDash.Core;
 using PepperDash.Core.Logging;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
+using System;
+using System.Linq;
 
 namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 {
