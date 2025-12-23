@@ -16,7 +16,7 @@
 		<InformationalVersion>$(Version)</InformationalVersion>
 		<OutputPath>4Series\bin\$(Configuration)\</OutputPath>
 		<Authors>PepperDash Technologies</Authors>
-		<PackageId>Pepperdash.Essentials.Plugins.Display.Colorlight.Z6</PackageId>
+		<PackageId>Pepperdash.Essentials.Plugins.Colorlight.Z6</PackageId>
 		<PackageProjectUrl>https://github.com/PepperDash/epi-colorlight-z6</PackageProjectUrl>
 		<PackageTags>crestron 4series colorlight z6</PackageTags>
 	</PropertyGroup>
