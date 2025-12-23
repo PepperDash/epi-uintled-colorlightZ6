@@ -3,11 +3,13 @@ using System.Linq;
 using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.CrestronThread;
 using Crestron.SimplSharpPro.DeviceSupport;
+using Pepperdash.Essentials.Plugins.Colorlight.Z6;
 using PepperDash.Core;
+using PepperDash.Core.Logging;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
 
-namespace ColorlightZ6
+namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 {
 	public class ColorlightZ6Controller : EssentialsBridgeableDevice, ICommunicationMonitor
 	{
@@ -39,12 +41,12 @@ namespace ColorlightZ6
 
 			_id = config.Id;
 
-			Debug.Console(0, this, "Creating Colorlight Z6 controller with id {0}", _id);
+			this.LogInformation($"Creating Colorlight Z6 controller with id {_id}");
 		}
 
 		public override void Initialize()
 		{
-			Debug.Console(1, this, "Initialize: Colorlight Z6 {0}", _id);
+			this.LogInformation($"Initialize: Colorlight Z6 {_id}");
 			
 			Communications.Connect();
 			CommunicationMonitor.Start();
@@ -54,7 +56,7 @@ namespace ColorlightZ6
 
 		private void CommunicationsOnBytesReceived(object sender, GenericCommMethodReceiveBytesArgs genericCommMethodReceiveBytesArgs)
 		{
-			Debug.Console(0, this, "CommunicationsOnBytesReceived: {0}", BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes));
+			this.LogInformation($"CommunicationsOnBytesReceived: {BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes)}");
 
 			_myQueue.Enqueue(genericCommMethodReceiveBytesArgs.Bytes);
 
@@ -91,14 +93,14 @@ namespace ColorlightZ6
 			{
 				var myResponse = _myQueue.Dequeue();
 
-				Debug.Console(2, this, "ProcessQueue: {0}", myResponse);
+				this.LogVerbose($"ProcessQueue: {myResponse}");
 			}
 			return null;
 		}	
 		
 		public override void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge)
 		{
-			Debug.Console(0, this, "Connecting to SIMPL Bridge with joinStart {0}", joinStart);
+			this.LogInformation($"Connecting to SIMPL Bridge with joinStart {joinStart}");
 
 			var joinMap = new ColorlightZ6JoinMap(joinStart);
 
@@ -114,8 +116,8 @@ namespace ColorlightZ6
 				joinMap.SetCustomJoinData(customJoins);
 			}
 
-			Debug.Console(1, "Linking to Trilist '{0}'", trilist.ID.ToString("X"));
-			Debug.Console(0, "Linking to Bridge Type {0}", GetType().Name);
+			this.LogWarning($"Linking to Trilist '{trilist.ID.ToString("X")}'");
+			this.LogInformation($"Linking to Bridge Type {GetType().Name}");
 
 			trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
 
@@ -143,18 +145,17 @@ namespace ColorlightZ6
 		{
 			if (command == null)
 			{
-				Debug.Console(2, this, "SendBytes: command bytes are null" );
+				this.LogVerbose("SendBytes: command bytes are null");
 				return;
 			}
 
 			if (!Communications.IsConnected)
 			{
-				Debug.Console(2, this, "SendBytes: communications not connected, attempting connection...");
+				this.LogVerbose("SendBytes: communications not connected, attempting connection...");
 				Communications.Connect();
 			}
 
-			Debug.Console(1, this, "SendBytes: {0}", BitConverter.ToString(command));
-
+			this.LogInformation($"SendBytes: {BitConverter.ToString(command)}");
 			Communications.SendBytes(command);
 		}
 
@@ -169,7 +170,7 @@ namespace ColorlightZ6
 		{
 			var brightnessPercent = (float)Math.Round(brightness / 65535.0f, 1);
 
-			Debug.Console(2, this, "SetBrightness: Level {0} Percent {1}", brightness, brightnessPercent * 100);
+			this.LogVerbose($"SetBrightness: Level {brightness} Percent {brightnessPercent * 100}");
 
 			var brightnessBytes = BitConverter.GetBytes(brightnessPercent);
 
@@ -181,7 +182,7 @@ namespace ColorlightZ6
 
 			var command = commandBase.Concat(brightnessBytes).ToArray();
 
-			Debug.Console(2, this, "SetBrightness: {0}", BitConverter.ToString(command));
+			this.LogVerbose($"SetBrightness: {BitConverter.ToString(command)}");
 
 			SendBytes(command);
 		}
@@ -194,7 +195,7 @@ namespace ColorlightZ6
                 0x00, 0x00, 0x00, (byte) preset
             };
 
-			Debug.Console(2, this, "RecallPreset: {0}", BitConverter.ToString(command));
+			this.LogVerbose($"RecallPreset: {BitConverter.ToString(command)}");
 			
 			SendBytes(command);
 		}
@@ -207,7 +208,7 @@ namespace ColorlightZ6
                 0x00, 0x00, 0x00, 0x01
             };
 
-			Debug.Console(2, this, "SetShowOn: {0}", BitConverter.ToString(command));
+			this.LogVerbose($"SetShowOn: {BitConverter.ToString(command)}");
 
 			SendBytes(command);
 		}
@@ -220,7 +221,7 @@ namespace ColorlightZ6
                 0x00, 0x00, 0x00, 0x00
             };
 
-			Debug.Console(2, this, "SetShowOff: {0}", BitConverter.ToString(command));
+			this.LogVerbose($"SetShowOff: {BitConverter.ToString(command)}");
 
 			SendBytes(command);
 		}

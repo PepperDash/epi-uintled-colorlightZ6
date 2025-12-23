@@ -1,6 +1,6 @@
 ﻿using PepperDash.Essentials.Core;
 
-namespace ColorlightZ6
+namespace Pepperdash.Essentials.Plugins.Colorlight.Z6
 {
     public class ColorlightZ6JoinMap : JoinMapBaseAdvanced
 	{
