@@ -35,6 +35,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			}
 
 			Communications.BytesReceived += CommunicationsOnBytesReceived;
+			// Heartbeat every 2 minutes, retry connection every 3 minutes, mark offline after 5 minutes without successful communication
 			CommunicationMonitor = new GenericCommunicationMonitor(this, Communications, 120000, 180000, 300000, SendHeartbeat);
 			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
 
@@ -162,7 +163,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		{
 			//var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
 			var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
-			
+
 			SendBytes(command);
 		}
 
