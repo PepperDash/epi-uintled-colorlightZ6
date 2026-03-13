@@ -194,7 +194,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			var command = new byte[]
             {
                 0x74, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, (byte) preset
+                0x00, 0x00, 0x00, (byte)(preset - 1) // per manufacturer documentation, preset value is 0-based, but SIMPL uses 1-based
             };
 
 			this.LogVerbose($"RecallPreset: {BitConverter.ToString(command)}");
