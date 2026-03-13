@@ -162,6 +162,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		{
 			//var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
 			var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
+			
 			SendBytes(command);
 		}
 
@@ -184,8 +185,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 			var command = commandBase.Concat(brightnessBytes).ToArray();
 
-			this.LogVerbose($"SetBrightness: {BitConverter.ToString(command)}");
-
 			SendBytes(command);
 		}
 
@@ -196,8 +195,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
                 0x74, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, (byte)(preset - 1) // per manufacturer documentation, preset value is 0-based, but SIMPL uses 1-based
             };
-
-			this.LogVerbose($"RecallPreset: {BitConverter.ToString(command)}");
 			
 			SendBytes(command);
 		}
@@ -210,8 +207,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
                 0x00, 0x00, 0x00, 0x01
             };
 
-			this.LogVerbose($"SetShowOn: {BitConverter.ToString(command)}");
-
 			SendBytes(command);
 		}
 
@@ -222,8 +217,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
                 0x11, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00
             };
-
-			this.LogVerbose($"SetShowOff: {BitConverter.ToString(command)}");
 
 			SendBytes(command);
 		}
