@@ -55,7 +55,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 		private void CommunicationsOnBytesReceived(object sender, GenericCommMethodReceiveBytesArgs genericCommMethodReceiveBytesArgs)
 		{
-			this.LogInformation($"CommunicationsOnBytesReceived: {BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes)}");
+			this.LogVerbose($"CommunicationsOnBytesReceived: {BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes)}");
 
 			_myQueue.Enqueue(genericCommMethodReceiveBytesArgs.Bytes);
 
@@ -154,20 +154,23 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 				Communications.Connect();
 			}
 
-			this.LogInformation($"SendBytes: {BitConverter.ToString(command)}");
+			this.LogVerbose($"SendBytes: {BitConverter.ToString(command)}");
 			Communications.SendBytes(command);
 		}
 
 		private void SendHeartbeat()
 		{
 			//var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
-			var command = new byte[] { 0x99, 0x99, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00 };
+			var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
 			SendBytes(command);
 		}
 
 		public void SetBrightness(ushort brightness)
 		{
-			var brightnessPercent = (float)Math.Round(brightness / 65535.0f, 1);
+			// Scale Crestron ushort 0-65535 to a float 0.00-1.00
+			// Round to 2 decimal places so key values map as:
+			//  65535 -> 1.00f, 49149 -> 0.75f, 32767 -> 0.50f, 16383 -> 0.25f
+			var brightnessPercent = (float)Math.Round(brightness / 65535.0f, 2);
 
 			this.LogVerbose($"SetBrightness: Level {brightness} Percent {brightnessPercent * 100}");
 
