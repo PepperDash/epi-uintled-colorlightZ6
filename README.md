@@ -79,8 +79,8 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6JoinMap` class. The tabl
 
 | Join # | Name       | Direction  | Type   | Description                                                                                             |
 |--------|------------|-----------|--------|---------------------------------------------------------------------------------------------------------|
-| 1      | Brightness | FromSimpl | Analog | Brightness level, 0–65535. The EPI maps this to a float 0.00–1.00 and sends it as a 4-byte IEEE 754 float. |
-| 2      | Preset     | FromSimpl | Analog | Preset recall. SIMPL uses 1-based indexing; the EPI subtracts 1 and sends a 0-based preset index.      |
+| 21      | Preset     | FromSimpl | Analog | Preset recall. SIMPL uses 1-based indexing; the EPI subtracts 1 and sends a 0-based preset index.      |
+| 33      | Brightness | FromSimpl | Analog | Brightness level, 0–65535. The EPI maps this to a float 0.00–1.00 and sends it as a 4-byte IEEE 754 float. |
 
 ### Serial joins
 

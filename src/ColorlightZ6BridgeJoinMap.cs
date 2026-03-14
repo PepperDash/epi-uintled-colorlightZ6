@@ -60,7 +60,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
             new JoinDataComplete(
 				new JoinData
 				{
-					JoinNumber = 1, 
+					JoinNumber = 33, 
 					JoinSpan = 1
 				},
                 new JoinMetadata
@@ -74,7 +74,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
             new JoinDataComplete(
 				new JoinData
 				{
-					JoinNumber = 2, 
+					JoinNumber = 21, 
 					JoinSpan = 1
 				},
                 new JoinMetadata
