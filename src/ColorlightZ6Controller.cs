@@ -7,6 +7,7 @@ using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
 using System;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 {
@@ -18,6 +19,13 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		// per manufacturer documentation, heartbeat must be sent every 1-second
 		private const long HeartbeatTime = 1000;
 		private readonly ushort _id;
+		public IntFeedback InputNumberFeedback;
+        private List<bool> _inputFeedback;
+        private int _inputNumber;
+		private bool _powerIsOn;
+		private bool _powerIsOff;
+		private BasicTriList _trilist;
+		private ColorlightZ6JoinMap _joinMap;
 
 		public IBasicCommunication Communications { get; private set; }
 		public StatusMonitorBase CommunicationMonitor { get; private set; }
@@ -39,9 +47,17 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			CommunicationMonitor = new GenericCommunicationMonitor(this, Communications, 120000, 180000, 300000, SendHeartbeat);
 			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
 
+			InputNumberFeedback = new IntFeedback(() =>
+            {
+                return InputNumber;
+            });
+
 			_id = config.Id;
 
 			this.LogInformation($"Creating Colorlight Z6 controller with id {_id}");
+
+			_inputFeedback = new List<bool>();
+            InputFeedback = new List<BoolFeedback>();
 		}
 
 		public override void Initialize()
@@ -80,6 +96,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			_heartbeatTimer.Stop();
 			_heartbeatTimer.Dispose();
 			_heartbeatTimer = null;
+			ResetFakeFeedback();
 		}
 
 		private void CommunicationMonitor_StatusChage(object sender, MonitorStatusChangeEventArgs args)
@@ -97,12 +114,69 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			}
 			return null;
 		}	
+
+		public int InputNumber
+        {
+            get { return _inputNumber; }
+            private set
+            {
+                if (_inputNumber == value) return;
+
+                _inputNumber = value;
+                InputNumberFeedback.FireUpdate();
+                UpdateBooleanFeedback(value);
+            }
+        }
+
+		        /// <summary>
+        /// Updates Digital Route Feedback for Simpl EISC
+        /// </summary>
+        /// <param name="data">currently routed source</param>
+        private void UpdateBooleanFeedback(int data)
+        {
+            try
+            {
+                if (data < 0 || data >= _inputFeedback.Count)
+                {
+                    Debug.LogVerbose(this, "Input index {0} out of range for _inputFeedback (size {1})", data, _inputFeedback.Count);
+                    return;
+                }
+
+                if (_inputFeedback[data])
+                {
+                    return;
+                }
+
+                for (var i = 1; i < InputPorts.Count + 1; i++)
+                {
+                    _inputFeedback[i] = false;
+                }
+
+                _inputFeedback[data] = true;
+                foreach (var item in InputFeedback)
+                {
+                    var update = item;
+                    update.FireUpdate();
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(this, "{0}", e.Message);
+            }
+        }
+
+		protected override Func<string> CurrentInputFeedbackFunc
+        {     
+            get { return () => _currentInputPort != null ? _currentInputPort.Key : string.Empty; }
+        }
 		
 		public override void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge)
 		{
 			this.LogInformation($"Connecting to SIMPL Bridge with joinStart {joinStart}");
 
 			var joinMap = new ColorlightZ6JoinMap(joinStart);
+			_trilist = trilist;
+			_joinMap = joinMap;
 
 			if (bridge != null)
 			{
@@ -126,10 +200,23 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 				CommunicationMonitor.IsOnlineFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsOnline.JoinNumber]);
 			}
 
-			trilist.SetSigTrueAction(joinMap.ShowOn.JoinNumber, SetShowOn);
-			trilist.SetSigTrueAction(joinMap.ShowOff.JoinNumber, SetShowOff);
+			trilist.SetSigTrueAction(joinMap.PowerOn.JoinNumber, PowerOn);
+			trilist.SetSigTrueAction(joinMap.PowerOff.JoinNumber, PowerOff);
 			trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset); 
 			trilist.SetUShortSigAction(joinMap.Brightness.JoinNumber, SetBrightness);
+
+            // input (analog select)
+            trilist.SetUShortSigAction(joinMap.InputSelect.JoinNumber, analogValue =>
+            {
+                SetInput = analogValue;
+            });
+
+            // input (analog feedback)
+            if (InputNumberFeedback != null)
+                InputNumberFeedback.LinkInputSig(trilist.UShortInput[joinMap.InputSelect.JoinNumber]);
+
+            if (CurrentInputFeedback != null)
+                CurrentInputFeedback.OutputChange += (sender, args) => Debug.LogDebug(this, "CurrentInputFeedback: {0}", args.StringValue);
 
 			trilist.OnlineStatusChange += (o, a) =>
 			{
@@ -137,8 +224,35 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 				trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
 
+				if (CurrentInputFeedback != null)
+                    CurrentInputFeedback.FireUpdate();
+
+                if (InputNumberFeedback != null)
+                    InputNumberFeedback.FireUpdate();
+
+				UpdatePowerFeedback();
 
 			};
+		}
+
+		private void UpdatePowerFeedback()
+		{
+			if (_trilist == null || _joinMap == null) return;
+
+			// Enforce invariant via the shared command/feedback joins:
+			//  - PowerOn/PowerIsOn mapped to join 2
+			//  - PowerOff/PowerIsOff mapped to join 1
+			_trilist.BooleanInput[_joinMap.PowerOn.JoinNumber].BoolValue = _powerIsOn;
+			_trilist.BooleanInput[_joinMap.PowerOff.JoinNumber].BoolValue = _powerIsOff;
+		}
+
+		private void ResetFakeFeedback()
+		{
+			// When device goes offline, clear fake power and input state
+			_powerIsOn = false;
+			_powerIsOff = false;
+			InputNumber = 0;
+			UpdatePowerFeedback();
 		}
 
 		public void SendBytes(byte[] command)
@@ -200,8 +314,15 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			SendBytes(command);
 		}
 
-		public void SetShowOn()
+		/// <summary>
+		/// PowerOn command triggers `Show On` within manufacturers API
+		/// </summary>
+		public void PowerOn()
 		{
+			_powerIsOn = true;
+			_powerIsOff = false;
+			UpdatePowerFeedback();
+
 			var command = new byte[]
             {
                 0x11, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
@@ -211,8 +332,15 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			SendBytes(command);
 		}
 
-		public void SetShowOff()
+		/// <summary>
+		/// PowerOff command triggers `Show Off` within manufacturers API
+		/// </summary>
+		public void PowerOff()
 		{
+			_powerIsOn = false;
+			_powerIsOff = true;
+			UpdatePowerFeedback();
+
 			var command = new byte[]
             {
                 0x11, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,

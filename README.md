@@ -69,18 +69,19 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6JoinMap` class. The tabl
 
 ### Digital joins
 
-| Join # | Name     | Direction  | Type    | Description                              |
-|--------|----------|------------|---------|------------------------------------------|
-| 1      | ShowOff  | FromSimpl  | Digital | Pulse to turn the show off.              |
-| 2      | ShowOn   | FromSimpl  | Digital | Pulse to turn the show on.               |
-| 50     | IsOnline | ToSimpl    | Digital | High when the device is considered online. |
+| Join # | Name                         | Direction   | Type    | Description                                                                 |
+|--------|------------------------------|------------|---------|-----------------------------------------------------------------------------|
+| 1      | PowerOff / PowerIsOff       | ToFromSimpl| Digital | Command + fake feedback: off state. Clears when device goes offline.       |
+| 2      | PowerOn / PowerIsOn         | ToFromSimpl| Digital | Command + fake feedback: on state. Clears when device goes offline.        |
+| 50     | IsOnline                    | ToSimpl    | Digital | High when the device is considered online by the communication monitor.    |
 
 ### Analog joins
 
-| Join # | Name       | Direction  | Type   | Description                                                                                             |
-|--------|------------|-----------|--------|---------------------------------------------------------------------------------------------------------|
-| 21      | Preset     | FromSimpl | Analog | Preset recall. SIMPL uses 1-based indexing; the EPI subtracts 1 and sends a 0-based preset index.      |
-| 33      | Brightness | FromSimpl | Analog | Brightness level, 0–65535. The EPI maps this to a float 0.00–1.00 and sends it as a 4-byte IEEE 754 float. |
+| Join # | Name        | Direction   | Type   | Description                                                                                             |
+|--------|-------------|------------|--------|---------------------------------------------------------------------------------------------------------|
+| 1      | Brightness  | FromSimpl  | Analog | Brightness level, 0–65535. The EPI maps this to a float 0.00–1.00 and sends it as a 4-byte IEEE 754 float. |
+| 2      | Preset      | FromSimpl  | Analog | Preset recall. SIMPL uses 1-based indexing; the EPI subtracts 1 and sends a 0-based preset index.      |
+| 11     | InputSelect | ToFromSimpl| Analog | Input select command and feedback. Resets to 0 when the device goes offline.                           |
 
 ### Serial joins
 
