@@ -20,8 +20,8 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		private const long HeartbeatTime = 1000;
 		private readonly ushort _id;
 		public IntFeedback InputNumberFeedback;
-        private List<bool> _inputFeedback;
-        private int _inputNumber;
+		private List<bool> _inputFeedback;
+		private int _inputNumber;
 		private bool _powerIsOn;
 		private bool _powerIsOff;
 		private BasicTriList _trilist;
@@ -205,18 +205,22 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset); 
 			trilist.SetUShortSigAction(joinMap.Brightness.JoinNumber, SetBrightness);
 
-            // input (analog select)
-            trilist.SetUShortSigAction(joinMap.InputSelect.JoinNumber, analogValue =>
-            {
-                SetInput = analogValue;
-            });
+			// populate input names on InputNamesOffset serial joins
+			var inputNames = new[] { "HDMI", "DVI", "DVI-2", "DVI-3", "DVI-4", "SDI", "SDI-2" };
+			for (var i = 0; i < inputNames.Length; i++)
+			{
+				trilist.SetString((uint)(_joinMap.InputNamesOffset.JoinNumber + i), inputNames[i]);
+			}
 
-            // input (analog feedback)
-            if (InputNumberFeedback != null)
-                InputNumberFeedback.LinkInputSig(trilist.UShortInput[joinMap.InputSelect.JoinNumber]);
+			// input (analog select)
+			trilist.SetUShortSigAction(joinMap.InputSelect.JoinNumber, SelectInput);
 
-            if (CurrentInputFeedback != null)
-                CurrentInputFeedback.OutputChange += (sender, args) => Debug.LogDebug(this, "CurrentInputFeedback: {0}", args.StringValue);
+			// input (analog feedback)
+			if (InputNumberFeedback != null)
+				InputNumberFeedback.LinkInputSig(trilist.UShortInput[joinMap.InputSelect.JoinNumber]);
+
+			if (CurrentInputFeedback != null)
+				CurrentInputFeedback.OutputChange += (sender, args) => Debug.LogDebug(this, "CurrentInputFeedback: {0}", args.StringValue);
 
 			trilist.OnlineStatusChange += (o, a) =>
 			{
@@ -253,6 +257,66 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			_powerIsOff = false;
 			InputNumber = 0;
 			UpdatePowerFeedback();
+		}
+
+		private void SelectInput(ushort input)
+		{
+			// Map Crestron analog (1-7) to device-specific input codes
+			// 1: HDMI   -> 0x10
+			// 2: DVI    -> 0x01
+			// 3: DVI-2  -> 0x02
+			// 4: DVI-3  -> 0x03
+			// 5: DVI-4  -> 0x04
+			// 6: SDI    -> 0x20
+			// 7: SDI-2  -> 0x21
+			if (input < 1 || input > 7)
+			{
+				InputNumber = 0;
+				return;
+			}
+
+			InputNumber = input;
+			SetInput = input; // maintain base-class routing state
+
+			byte inputCode;
+			switch (input)
+			{
+				case 1:
+					inputCode = 0x10;
+					break;
+				case 2:
+					inputCode = 0x01;
+					break;
+				case 3:
+					inputCode = 0x02;
+					break;
+				case 4:
+					inputCode = 0x03;
+					break;
+				case 5:
+					inputCode = 0x04;
+					break;
+				case 6:
+					inputCode = 0x20;
+					break;
+				case 7:
+					inputCode = 0x21;
+					break;
+				default:
+					inputCode = 0x00;
+					break;
+			}
+
+			var command = new byte[]
+			{
+				0x33, 0x00, 0x12, 0x00, 0x00, 0x00,
+				(byte)(_id >> 8), (byte)(_id & 0xFF), 0xFF,
+				0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00,
+				inputCode
+			};
+
+			SendBytes(command);
 		}
 
 		public void SendBytes(byte[] command)
