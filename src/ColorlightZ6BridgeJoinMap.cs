@@ -8,7 +8,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
         // PowerOff triggers `Show Off` within manufacturers API
         [JoinName("PowerOff")]
-        [JoinName("PowerIsOff")]
         public JoinDataComplete PowerOff =
             new JoinDataComplete(
             new JoinData
@@ -25,7 +24,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
         // PowerOn triggers `Show On` within manufacturers API
         [JoinName("PowerOn")]
-        [JoinName("PowerIsOn")]
         public JoinDataComplete PowerOn =
             new JoinDataComplete(
             new JoinData
@@ -101,8 +99,8 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 		#region Analog Joins
 
-        [JoinName("InputSelect")]
-        [JoinName("InputSelect")] public JoinDataComplete InputSelect =
+        [JoinName("InputSelect")] 
+        public JoinDataComplete InputSelect =
             new JoinDataComplete(
                 new JoinData
                 {
@@ -116,7 +114,8 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
                     JoinType = eJoinType.Analog
                 });
 
-		[JoinName("Brightness")] public JoinDataComplete Brightness =
+		[JoinName("Brightness")] 
+		public JoinDataComplete Brightness =
             new JoinDataComplete(
 				new JoinData
 				{
@@ -130,7 +129,8 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
                     JoinType = eJoinType.Analog
                 });
 
-        [JoinName("Preset")] public JoinDataComplete Preset =
+        [JoinName("Preset")] 
+        public JoinDataComplete Preset =
             new JoinDataComplete(
 				new JoinData
 				{

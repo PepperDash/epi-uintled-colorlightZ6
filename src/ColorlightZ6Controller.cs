@@ -20,6 +20,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		private const long HeartbeatTime = 1000;
 		private readonly ushort _id;
 		public IntFeedback InputNumberFeedback;
+		public List<BoolFeedback> InputFeedback;
 		private List<bool> _inputFeedback;
 		private int _inputNumber;
 		private bool _powerIsOn;
@@ -147,11 +148,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
                     return;
                 }
 
-                for (var i = 1; i < InputPorts.Count + 1; i++)
-                {
-                    _inputFeedback[i] = false;
-                }
-
                 _inputFeedback[data] = true;
                 foreach (var item in InputFeedback)
                 {
@@ -163,11 +159,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
             {
                 Debug.LogError(this, "{0}", e.Message);
             }
-        }
-
-		protected override Func<string> CurrentInputFeedbackFunc
-        {     
-            get { return () => _currentInputPort != null ? _currentInputPort.Key : string.Empty; }
         }
 		
 		public override void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge)
@@ -219,17 +210,11 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			if (InputNumberFeedback != null)
 				InputNumberFeedback.LinkInputSig(trilist.UShortInput[joinMap.InputSelect.JoinNumber]);
 
-			if (CurrentInputFeedback != null)
-				CurrentInputFeedback.OutputChange += (sender, args) => Debug.LogDebug(this, "CurrentInputFeedback: {0}", args.StringValue);
-
 			trilist.OnlineStatusChange += (o, a) =>
 			{
 				if (!a.DeviceOnLine) return;
 
 				trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
-
-				if (CurrentInputFeedback != null)
-                    CurrentInputFeedback.FireUpdate();
 
                 if (InputNumberFeedback != null)
                     InputNumberFeedback.FireUpdate();
@@ -276,7 +261,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			}
 
 			InputNumber = input;
-			SetInput = input; // maintain base-class routing state
 
 			byte inputCode;
 			switch (input)
