@@ -1,3 +1,4 @@
+![PepperDash Essentials Pluign Logo](/images/essentials-plugin-blue.png)
 # Uintled ColorLight Z6 (c) 2025
 
 ## License
