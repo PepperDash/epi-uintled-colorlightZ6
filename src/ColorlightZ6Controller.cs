@@ -52,10 +52,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			CommunicationMonitor = new GenericCommunicationMonitor(this, Communications, 120000, 180000, 300000, SendHeartbeat);
 			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
 
-			InputNumberFeedback = new IntFeedback(() =>
-            {
-                return InputNumber;
-            });
+			InputNumberFeedback = new IntFeedback(Key + "-InputNumberFeedback", () => InputNumber);
 
 			_id = config.Id;
 
