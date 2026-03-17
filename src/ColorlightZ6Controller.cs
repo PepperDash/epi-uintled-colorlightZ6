@@ -28,6 +28,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		private BasicTriList _trilist;
 		private ColorlightZ6JoinMap _joinMap;
         private readonly object _inputFeedbackLock = new object();
+		private readonly ColorlightZ6Properties _config;
 
 		public IBasicCommunication Communications { get; private set; }
 		public StatusMonitorBase CommunicationMonitor { get; private set; }
@@ -36,6 +37,8 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		public ColorlightZ6Controller(string key, string name, IBasicCommunication comm, ColorlightZ6Properties config)
 			: base(key, name)
 		{
+			_config = config;
+
 			Communications = comm;
 
 			var socket = Communications as ISocketStatus;
@@ -59,7 +62,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			this.LogInformation($"Creating Colorlight Z6 controller with id {_id}");
 
 			_inputFeedback = new List<bool>();
-            InputFeedback = new List<BoolFeedback>();
+			InputFeedback = new List<BoolFeedback>();
 		}
 
 		public override void Initialize()
@@ -130,9 +133,31 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
             }
         }
 
+		private bool IsInputHidden(int inputNumber)
+		{
+			if (_config == null || _config.FriendlyNames == null)
+				return false;
+
+			var friendly = _config.FriendlyNames.FirstOrDefault(f => f.InputNumber == inputNumber);
+			return friendly != null && friendly.HideInput;
+		}
+
+		private string GetInputFriendlyName(int inputNumber, string defaultName)
+		{
+			if (_config == null || _config.FriendlyNames == null)
+				return defaultName;
+
+			var friendly = _config.FriendlyNames.FirstOrDefault(f => f.InputNumber == inputNumber);
+			if (friendly == null || string.IsNullOrEmpty(friendly.Name) || friendly.HideInput)
+				return friendly != null && friendly.HideInput ? string.Empty : defaultName;
+
+			return friendly.Name;
+		}
+
 				/// <summary>
 			/// Updates digital input-select feedback for SIMPL bridge.
-			/// Ensures only the currently selected input join is high.
+			/// Ensures only the currently selected visible input join is high.
+			/// Hidden inputs never drive feedback high.
 			/// </summary>
 			/// <param name="data">Currently routed source (1-7), or 0 for none.</param>
 			private void UpdateBooleanFeedback(int data)
@@ -152,7 +177,9 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 					for (var i = 0; i < maxInputs; i++)
 					{
-						var isActive = (data - 1) == i && data >= 1 && data <= maxInputs;
+						var inputNumber = i + 1;
+						var isVisible = !IsInputHidden(inputNumber);
+						var isActive = isVisible && (data - 1) == i && data >= 1 && data <= maxInputs;
 						_inputFeedback.Add(isActive);
 
 						var join = (uint)(_joinMap.InputSelectOffset.JoinNumber + i);
@@ -202,20 +229,30 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset); 
 			trilist.SetUShortSigAction(joinMap.Brightness.JoinNumber, SetBrightness);
 
-			// digital input-select buttons (11-17) mapped to inputs 1-7
+			// digital input-select buttons (11-17) mapped to inputs 1-7,
+			// honoring any hideInput settings from config
 			const int maxInputs = 7;
 			for (var i = 0; i < maxInputs; i++)
 			{
 				var inputIndex = (ushort)(i + 1);
 				var joinNumber = (uint)(joinMap.InputSelectOffset.JoinNumber + i);
+
+				if (IsInputHidden(inputIndex))
+					continue;
+
 				trilist.SetSigTrueAction(joinNumber, () => SelectInput(inputIndex));
 			}
 
-			// populate input names on InputNamesOffset serial joins
-			var inputNames = new[] { "HDMI", "DVI", "DVI-2", "DVI-3", "DVI-4", "SDI", "SDI-2" };
-			for (var i = 0; i < inputNames.Length; i++)
+			// populate input names on InputNamesOffset serial joins,
+			// applying friendlyNames and hideInput configuration
+			var defaultInputNames = new[] { "HDMI", "DVI", "DVI-2", "DVI-3", "DVI-4", "SDI", "SDI-2" };
+			for (var i = 0; i < defaultInputNames.Length; i++)
 			{
-				trilist.SetString((uint)(_joinMap.InputNamesOffset.JoinNumber + i), inputNames[i]);
+				var inputNumber = i + 1;
+				var defaultName = defaultInputNames[i];
+				var friendlyName = GetInputFriendlyName(inputNumber, defaultName);
+
+				trilist.SetString((uint)(_joinMap.InputNamesOffset.JoinNumber + i), friendlyName);
 			}
 
 			// input (analog select)

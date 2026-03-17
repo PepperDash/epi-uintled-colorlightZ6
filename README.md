@@ -44,7 +44,24 @@ Common cases:
 				"control": {
 					// standard Essentials TCP/UDP control config here
 				},
-				"id": 1        // sends 0x00 0x01 as the ID bytes
+				"id": 1,       // sends 0x00 0x01 as the ID bytes
+				"friendlyNames": [
+					{
+						"inputNumber": 1,
+						"name": "HDMI Processor",
+						"hideInput": false
+					},
+					{
+						"inputNumber": 2,
+						"name": "DVI Wall PC",
+						"hideInput": false
+					},
+					{
+						"inputNumber": 7,
+						"name": "Spare",
+						"hideInput": true   // hidden from SIMPL: no button action, no feedback, blank name
+					}
+				]
 			}
 		},
 		{
@@ -69,19 +86,20 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6JoinMap` class. The tabl
 
 ### Digital joins
 
-| Join # | Name                   | Direction  | Description                                                             |
-|--------|------------------------|------------|-------------------------------------------------------------------------|
-| 1      | PowerOff  | ToFromSimpl| Digital    | Command + fake feedback: off state. Clears when device goes offline.    |
-| 2      | PowerOn   | ToFromSimpl| Digital    | Command + fake feedback: on state. Clears when device goes offline.     |
-| 50     | IsOnline  | ToSimpl    | Digital    | High when the device is considered online by the communication monitor. |
+| Join # | Name              | Direction   | Type     | Description                                                                                                                                     |
+|--------|-------------------|------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1      | PowerOff          | ToFromSIMPL| Digital  | Command + fake feedback: off state. Clears when device goes offline.                                                                            |
+| 2      | PowerOn           | ToFromSIMPL| Digital  | Command + fake feedback: on state. Clears when device goes offline.                                                                             |
+| 11–17  | InputSelectOffset | ToFromSIMPL| Digital  | One-hot input select and feedback array. 11–17 map to inputs 1–7 (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2). Honors `friendlyNames.hideInput`. |
+| 50     | IsOnline          | ToSIMPL    | Digital  | High when the device is considered online by the communication monitor.                                                                         |
 
 ### Analog joins
 
-| Join # | Name        | Direction   | Description                                                                                             |
-|--------|-------------|------------|--------|---------------------------------------------------------------------------------------------------------|
-| 33     | Brightness  | FromSimpl  | Brightness level, 0–65535. The EPI maps this to a float 0.00–1.00 and sends it as a 4-byte IEEE 754 float. |
-| 21     | Preset      | FromSimpl  | Preset recall. SIMPL uses 1-based indexing; the EPI subtracts 1 and sends a 0-based preset index.      |
-| 11     | InputSelect | ToFromSimpl| Input select command and fake feedback. 1–7 map to HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2. Resets to 0 when the device goes offline. |
+| Join # | Name        | Direction   | Type    | Description                                                                                                                                  |
+|--------|-------------|------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| 33     | Brightness  | FromSIMPL  | Analog  | Brightness level, 0–65535. The EPI maps this to a float 0.00–1.00 and sends it as a 4-byte IEEE 754 float.                                   |
+| 21     | Preset      | FromSIMPL  | Analog  | Preset recall. SIMPL uses 1-based indexing; the EPI subtracts 1 and sends a 0-based preset index.                                            |
+| 11     | InputSelect | ToFromSIMPL| Analog  | Input select command and fake feedback. 1–7 map to HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2. Resets to 0 when the device goes offline.    |
 
 ### Serial joins
 
