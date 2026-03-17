@@ -38,6 +38,20 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
                 JoinType = eJoinType.Digital
             });
 
+        [JoinName("InputSelectOffset")]
+        public JoinDataComplete InputSelectOffset = new JoinDataComplete(
+            new JoinData
+            {
+                JoinNumber = 11,
+                JoinSpan = 7
+            },
+            new JoinMetadata
+            {
+                Description = "Input Select",
+                JoinCapabilities = eJoinCapabilities.ToFromSIMPL,
+                JoinType = eJoinType.Digital
+            });    
+
 		[JoinName("IsOnline")]
 		public JoinDataComplete IsOnline = new JoinDataComplete(
 			new JoinData
@@ -66,19 +80,19 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
         //        JoinType = eJoinType.Digital
         //    });
 
-        //[JoinName("InputSelectOffset")]
-        //public JoinDataComplete InputSelectOffset = new JoinDataComplete(
-        //    new JoinData
-        //    {
-        //        JoinNumber = 11,
-        //        JoinSpan = 10
-        //    },
-        //    new JoinMetadata
-        //    {
-        //        Description = "Input Select",
-        //        JoinCapabilities = eJoinCapabilities.ToFromSIMPL,
-        //        JoinType = eJoinType.Digital
-        //    });
+        // [JoinName("InputSelectOffset")]
+        // public JoinDataComplete InputSelectOffset = new JoinDataComplete(
+        //     new JoinData
+        //     {
+        //         JoinNumber = 11,
+        //         JoinSpan = 10
+        //     },
+        //     new JoinMetadata
+        //     {
+        //         Description = "Input Select",
+        //         JoinCapabilities = eJoinCapabilities.ToFromSIMPL,
+        //         JoinType = eJoinType.Digital
+        //     });
 
         //[JoinName("ButtonVisibilityOffset")]
         //public JoinDataComplete ButtonVisibilityOffset = new JoinDataComplete(

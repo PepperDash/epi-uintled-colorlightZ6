@@ -27,6 +27,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		private bool _powerIsOff;
 		private BasicTriList _trilist;
 		private ColorlightZ6JoinMap _joinMap;
+        private readonly object _inputFeedbackLock = new object();
 
 		public IBasicCommunication Communications { get; private set; }
 		public StatusMonitorBase CommunicationMonitor { get; private set; }
@@ -125,41 +126,46 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
                 _inputNumber = value;
                 InputNumberFeedback.FireUpdate();
-                UpdateBooleanFeedback(value);
+				UpdateBooleanFeedback(value);
             }
         }
 
-		        /// <summary>
-        /// Updates Digital Route Feedback for Simpl EISC
-        /// </summary>
-        /// <param name="data">currently routed source</param>
-        private void UpdateBooleanFeedback(int data)
-        {
-            try
-            {
-                if (data < 0 || data >= _inputFeedback.Count)
-                {
-                    Debug.LogVerbose(this, "Input index {0} out of range for _inputFeedback (size {1})", data, _inputFeedback.Count);
-                    return;
-                }
+				/// <summary>
+			/// Updates digital input-select feedback for SIMPL bridge.
+			/// Ensures only the currently selected input join is high.
+			/// </summary>
+			/// <param name="data">Currently routed source (1-7), or 0 for none.</param>
+			private void UpdateBooleanFeedback(int data)
+			{
+				if (_trilist == null || _joinMap == null)
+				{
+					return;
+				}
 
-                if (_inputFeedback[data])
-                {
-                    return;
-                }
+				lock (_inputFeedbackLock)
+				{
+					// Clear existing state
+					_inputFeedback.Clear();
 
-                _inputFeedback[data] = true;
-                foreach (var item in InputFeedback)
-                {
-                    var update = item;
-                    update.FireUpdate();
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogError(this, "{0}", e.Message);
-            }
-        }
+					// We support up to 7 inputs on digital joins 11-17
+					const int maxInputs = 7;
+
+					for (var i = 0; i < maxInputs; i++)
+					{
+						var isActive = (data - 1) == i && data >= 1 && data <= maxInputs;
+						_inputFeedback.Add(isActive);
+
+						var join = (uint)(_joinMap.InputSelectOffset.JoinNumber + i);
+						_trilist.BooleanInput[join].BoolValue = isActive;
+					}
+
+					// Fire any external BoolFeedbacks that depend on this list
+					foreach (var item in InputFeedback)
+					{
+						item.FireUpdate();
+					}
+				}
+			}
 		
 		public override void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge)
 		{
@@ -196,6 +202,15 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset); 
 			trilist.SetUShortSigAction(joinMap.Brightness.JoinNumber, SetBrightness);
 
+			// digital input-select buttons (11-17) mapped to inputs 1-7
+			const int maxInputs = 7;
+			for (var i = 0; i < maxInputs; i++)
+			{
+				var inputIndex = (ushort)(i + 1);
+				var joinNumber = (uint)(joinMap.InputSelectOffset.JoinNumber + i);
+				trilist.SetSigTrueAction(joinNumber, () => SelectInput(inputIndex));
+			}
+
 			// populate input names on InputNamesOffset serial joins
 			var inputNames = new[] { "HDMI", "DVI", "DVI-2", "DVI-3", "DVI-4", "SDI", "SDI-2" };
 			for (var i = 0; i < inputNames.Length; i++)
@@ -219,6 +234,8 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
                 if (InputNumberFeedback != null)
                     InputNumberFeedback.FireUpdate();
 
+				UpdateBooleanFeedback(InputNumber);
+
 				UpdatePowerFeedback();
 
 			};
@@ -241,6 +258,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			_powerIsOn = false;
 			_powerIsOff = false;
 			InputNumber = 0;
+			UpdateBooleanFeedback(0);
 			UpdatePowerFeedback();
 		}
 
