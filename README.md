@@ -48,19 +48,30 @@ Common cases:
 				"id": 1,       // sends 0x00 0x01 as the ID bytes
 				"friendlyNames": [
 					{
-						"inputNumber": 1,
+						"inputNumber": 1,       // button 11
 						"name": "HDMI Processor",
-						"hideInput": false
+						"hideInput": false,
+						"inputSelect": 1,       // optional: route to input 1 (default behavior)
+						"brightness": 32767,    // optional: 50% brightness
+						"preset": 1             // optional: recall preset 1
 					},
 					{
-						"inputNumber": 2,
-						"name": "DVI Wall PC",
-						"hideInput": false
+						"inputNumber": 2,       // button 12
+						"name": "Scene - Movie",
+						"hideInput": false,
+						"brightness": 49149,    // brightness-only scene (75%)
+						"preset": 3             // optional: preset 3
 					},
 					{
-						"inputNumber": 7,
+						"inputNumber": 3,       // button 13
+						"name": "Preset Only",
+						"hideInput": false,
+						"preset": 5             // preset-only scene
+					},
+					{
+						"inputNumber": 7,       // button 17
 						"name": "Spare",
-						"hideInput": true   // hidden from SIMPL: no button action, no feedback, blank name
+						"hideInput": true        // hidden from SIMPL: no button action, no feedback, blank name
 					}
 				]
 			}

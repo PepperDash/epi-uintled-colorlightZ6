@@ -133,25 +133,80 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
             }
         }
 
-		private bool IsInputHidden(int inputNumber)
+		private ColorlightInputFriendlyName GetFriendlyConfigForButton(int inputNumber)
 		{
 			if (_config == null || _config.FriendlyNames == null)
-				return false;
+				return null;
 
-			var friendly = _config.FriendlyNames.FirstOrDefault(f => f.InputNumber == inputNumber);
+			return _config.FriendlyNames.FirstOrDefault(f => f.InputNumber == inputNumber);
+		}
+
+		private bool IsInputHidden(int inputNumber)
+		{
+			var friendly = GetFriendlyConfigForButton(inputNumber);
 			return friendly != null && friendly.HideInput;
 		}
 
 		private string GetInputFriendlyName(int inputNumber, string defaultName)
 		{
-			if (_config == null || _config.FriendlyNames == null)
-				return defaultName;
-
-			var friendly = _config.FriendlyNames.FirstOrDefault(f => f.InputNumber == inputNumber);
+			var friendly = GetFriendlyConfigForButton(inputNumber);
 			if (friendly == null || string.IsNullOrEmpty(friendly.Name) || friendly.HideInput)
 				return friendly != null && friendly.HideInput ? string.Empty : defaultName;
 
 			return friendly.Name;
+		}
+
+		private void ExecuteButtonAction(ushort buttonIndex)
+		{
+			// buttonIndex is 1-7 corresponding to joins 11-17
+			var friendly = GetFriendlyConfigForButton(buttonIndex);
+			var anyAction = false;
+
+			// If we have a config entry, evaluate optional actions
+			if (friendly != null)
+			{
+				// Optional input selection override
+				if (friendly.InputSelect.HasValue)
+				{
+					var routeInput = friendly.InputSelect.Value;
+					if (routeInput >= 1 && routeInput <= 7)
+					{
+						SelectInput((ushort)routeInput);
+						anyAction = true;
+					}
+					else
+					{
+						this.LogWarning($"ExecuteButtonAction: inputSelect {routeInput} out of range (1-7) for button {buttonIndex}");
+					}
+				}
+
+				// Optional brightness
+				if (friendly.Brightness.HasValue)
+				{
+					SetBrightness(friendly.Brightness.Value);
+					anyAction = true;
+				}
+
+				// Optional preset recall
+				if (friendly.Preset.HasValue)
+				{
+					if (friendly.Preset.Value > 0)
+					{
+						RecallPreset(friendly.Preset.Value);
+						anyAction = true;
+					}
+					else
+					{
+						this.LogWarning($"ExecuteButtonAction: preset value {friendly.Preset.Value} is out of range (>0) for button {buttonIndex}");
+					}
+				}
+			}
+
+			// Backward-compatible default: if no config or no explicit actions, treat as input select for this index
+			if (!anyAction)
+			{
+				SelectInput(buttonIndex);
+			}
 		}
 
 				/// <summary>
@@ -229,18 +284,19 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset); 
 			trilist.SetUShortSigAction(joinMap.Brightness.JoinNumber, SetBrightness);
 
-			// digital input-select buttons (11-17) mapped to inputs 1-7,
-			// honoring any hideInput settings from config
+			// digital input-select buttons (11-17) mapped to logical buttons 1-7,
+			// honoring any hideInput settings and executing configured actions
 			const int maxInputs = 7;
 			for (var i = 0; i < maxInputs; i++)
 			{
-				var inputIndex = (ushort)(i + 1);
+				var buttonIndex = (ushort)(i + 1);
 				var joinNumber = (uint)(joinMap.InputSelectOffset.JoinNumber + i);
 
-				if (IsInputHidden(inputIndex))
+				if (IsInputHidden(buttonIndex))
 					continue;
 
-				trilist.SetSigTrueAction(joinNumber, () => SelectInput(inputIndex));
+				var localButtonIndex = buttonIndex; // avoid modified-closure issue
+				trilist.SetSigTrueAction(joinNumber, () => ExecuteButtonAction(localButtonIndex));
 			}
 
 			// populate input names on InputNamesOffset serial joins,

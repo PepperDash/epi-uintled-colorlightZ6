@@ -43,5 +43,24 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
         /// </summary>
         [JsonProperty("hideInput")]
         public bool HideInput { get; set; }
+
+        /// <summary>
+        /// Optional override for which device input to select when this button is pressed.
+        /// If null, defaults to using inputNumber as the routed input.
+        /// </summary>
+        [JsonProperty("inputSelect")]
+        public int? InputSelect { get; set; }
+
+        /// <summary>
+        /// Optional brightness level (0-65535) to apply when this button is pressed.
+        /// </summary>
+        [JsonProperty("brightness")]
+        public ushort? Brightness { get; set; }
+
+        /// <summary>
+        /// Optional preset number to recall when this button is pressed.
+        /// </summary>
+        [JsonProperty("preset")]
+        public ushort? Preset { get; set; }
     }
 }
