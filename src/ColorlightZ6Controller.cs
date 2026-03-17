@@ -56,7 +56,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 			_id = config.Id;
 
-			this.LogInformation($"Creating Colorlight Z6 controller with id {_id}");
+			this.LogInformation($"Creating Colorlight Z6 controller with id: {_id}");
 
 			_inputFeedback = new List<bool>();
 			InputFeedback = new List<BoolFeedback>();
@@ -64,7 +64,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 		public override void Initialize()
 		{
-			this.LogInformation($"Initialize: Colorlight Z6 {_id}");
+			this.LogInformation($"Initialize: Colorlight Z6 with id: {_id}");
 			
 			Communications.Connect();
 			CommunicationMonitor.Start();
