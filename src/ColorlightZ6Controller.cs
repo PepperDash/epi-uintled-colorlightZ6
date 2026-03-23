@@ -69,8 +69,38 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			Communications.Connect();
 			CommunicationMonitor.Start();
 
+			// Ensure heartbeat timer is running for all transport types (TCP, COM, UDP, SSH).
+			// Previously this was only started from the socket connection-change event,
+			// which meant non-socket transports (e.g. COM) never sent the required 1s heartbeat.
+			StartHeartbeatTimer();
+
 			base.Initialize();
 		}	
+
+		/// <summary>
+		/// Starts the 1-second heartbeat timer if it is not already running.
+		/// Used for all communication types, not just socket-based transports.
+		/// </summary>
+		private void StartHeartbeatTimer()
+		{
+			if (_heartbeatTimer != null)
+				return;
+
+			_heartbeatTimer = new CTimer(o => SendHeartbeat(), null, 0, HeartbeatTime);
+		}
+
+		/// <summary>
+		/// Safely stops and disposes the heartbeat timer if it is running.
+		/// </summary>
+		private void StopHeartbeatTimer()
+		{
+			if (_heartbeatTimer == null)
+				return;
+
+			_heartbeatTimer.Stop();
+			_heartbeatTimer.Dispose();
+			_heartbeatTimer = null;
+		}
 
 		private void CommunicationsOnBytesReceived(object sender, GenericCommMethodReceiveBytesArgs genericCommMethodReceiveBytesArgs)
 		{
@@ -87,23 +117,32 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		{
 			if (genericSocketStatusChageEventArgs.Client.IsConnected)
 			{
-				if (_heartbeatTimer == null)
-				{
-					_heartbeatTimer = new CTimer(o => SendHeartbeat(), null, 0, HeartbeatTime);
-				}
-
+				// For socket-based transports, ensure the heartbeat is running when the
+				// underlying client reports a successful connection.
+				StartHeartbeatTimer();
 				return;
 			}
 
-			_heartbeatTimer.Stop();
-			_heartbeatTimer.Dispose();
-			_heartbeatTimer = null;
+			// On socket disconnect, stop the heartbeat and clear feedback.
+			StopHeartbeatTimer();
 			ResetFakeFeedback();
 		}
 
 		private void CommunicationMonitor_StatusChage(object sender, MonitorStatusChangeEventArgs args)
 		{
+			// Keep the existing online feedback behavior.
 			CommunicationMonitor.IsOnlineFeedback.FireUpdate();
+
+			// Start or stop the heartbeat timer based on overall monitor status
+			// for any communication method (tcpIp, com, udp, ssh).
+			if (args.Status == MonitorStatus.IsOk)
+			{
+				StartHeartbeatTimer();
+			}
+			else
+			{
+				StopHeartbeatTimer();
+			}
 		}
 
 		private object ProcessQueue(object obj)
