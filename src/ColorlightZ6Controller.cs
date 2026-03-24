@@ -11,7 +11,7 @@ using System.Collections.Generic;
 
 namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 {
-	public class ColorlightZ6Controller : EssentialsBridgeableDevice, ICommunicationMonitor
+	public class ColorlightZ6Controller : EssentialsBridgeableDevice, ICommunicationMonitor, IDisposable
 	{
 		private Thread _queueProcess;
 		private readonly CrestronQueue<byte[]> _myQueue = new CrestronQueue<byte[]>(100);
@@ -117,14 +117,13 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		{
 			if (genericSocketStatusChageEventArgs.Client.IsConnected)
 			{
-				// For socket-based transports, ensure the heartbeat is running when the
-				// underlying client reports a successful connection.
-				StartHeartbeatTimer();
+				// For socket-based transports, maintain existing behavior on connect
+				// (no-op for heartbeat, which now runs continuously once started).
 				return;
 			}
 
-			// On socket disconnect, stop the heartbeat and clear feedback.
-			StopHeartbeatTimer();
+			// On socket disconnect, clear feedback. Heartbeat now runs
+			// continuously and is only stopped during device disposal.
 			ResetFakeFeedback();
 		}
 
@@ -132,17 +131,6 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		{
 			// Keep the existing online feedback behavior.
 			CommunicationMonitor.IsOnlineFeedback.FireUpdate();
-
-			// Start or stop the heartbeat timer based on overall monitor status
-			// for any communication method (tcpIp, com, udp, ssh).
-			if (args.Status == MonitorStatus.IsOk)
-			{
-				StartHeartbeatTimer();
-			}
-			else
-			{
-				StopHeartbeatTimer();
-			}
 		}
 
 		private object ProcessQueue(object obj)
@@ -543,6 +531,17 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
             };
 
 			SendBytes(command);
+		}
+
+		/// <summary>
+		/// Ensures heartbeat timer is stopped and disposed when the device
+		/// itself is disposed (if the host calls this method).
+		/// Once started, the heartbeat runs continuously for the lifetime
+		/// of the device.
+		/// </summary>
+		public void Dispose()
+		{
+			StopHeartbeatTimer();
 		}
 	}
 }
