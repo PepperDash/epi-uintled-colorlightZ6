@@ -7,6 +7,16 @@ Provided under MIT license
 
 ## Configuration
 
+### Communication options
+
+The ColorLight Z6 exposes three control integration methods. The EPI can use any of these via the standard Essentials `properties.control` configuration block:
+
+- **TCP/IP** – connect to the device IP on **port 9999**.
+- **UDP** – send/receive datagrams to the device IP on **port 9099**.
+- **Serial / RS‑232** – connect at **115200 baud, 8 data bits, 1 stop bit, no parity** 
+
+Use the appropriate Essentials transport type (tcpIp, udp, com) in the `control` section of the device configuration to match how the Z6 is wired in your system.
+
 ### Device ID (`properties.id`)
 
 The ColorLight Z6 EPI uses an `id` value in the Essentials configuration to determine which device ID to embed in all commands.
@@ -83,8 +93,19 @@ Common cases:
 			"group": "displays",
 			"properties": {
 				"control": {
-					// standard Essentials TCP/UDP control config here
-				},
+					"method": "com",
+					"controlPortDevKey": "processor",
+					"controlPortNumber": 1,
+					"comParams": {
+						"hardwareHandshake": "None",
+						"parity": "None",
+						"protocol": "RS232",
+						"baudRate": 115200,
+						"dataBits": 8,
+						"softwareHandshake": "None",
+						"stopBits": 1
+					}
+				},	
 				"id": 65535   // sends 0xFF 0xFF as the ID bytes
 			}
 		}
