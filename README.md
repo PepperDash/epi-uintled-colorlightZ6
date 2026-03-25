@@ -142,3 +142,47 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6JoinMap` class. The tabl
 | 11     | InputNamesOffset | ToSimpl   | Input names (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2, ...), starting at this offset.       |
 
 
+<!-- START Minimum Essentials Framework Versions -->
+### Minimum Essentials Framework Versions
+
+- 2.24.2
+<!-- END Minimum Essentials Framework Versions -->
+<!-- START Supported Types -->
+
+<!-- END Supported Types -->
+<!-- START Join Maps -->
+
+<!-- END Join Maps -->
+<!-- START Interfaces Implemented -->
+### Interfaces Implemented
+
+- ICommunicationMonitor
+- IDisposable
+<!-- END Interfaces Implemented -->
+<!-- START Base Classes -->
+### Base Classes
+
+- EssentialsBridgeableDevice
+- JoinMapBaseAdvanced
+<!-- END Base Classes -->
+<!-- START Public Methods -->
+### Public Methods
+
+- public void SendBytes(byte[] command)
+- public void SetBrightness(ushort brightness)
+- public void RecallPreset(ushort preset)
+- public void PowerOn()
+- public void PowerOff()
+- public void Dispose()
+<!-- END Public Methods -->
+<!-- START Bool Feedbacks -->
+
+<!-- END Bool Feedbacks -->
+<!-- START Int Feedbacks -->
+### Int Feedbacks
+
+- InputNumberFeedback
+<!-- END Int Feedbacks -->
+<!-- START String Feedbacks -->
+
+<!-- END String Feedbacks -->
