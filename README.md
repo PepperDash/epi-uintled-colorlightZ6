@@ -1,5 +1,46 @@
 ![PepperDash Essentials Pluign Logo](/images/essentials-plugin-blue.png)
-# Uintled ColorLight Z6 (c) 2025
+# Colorlight Sender (Z6) (c) 2026
+
+## About the manufacturer and supported models
+
+**Colorlight** is the manufacturer of the device this plugin controls: an LED *sender* (also called a sending card or video processor) that drives the receiving cards inside an LED wall. The **Z6** is one of many Colorlight senders that share the same control protocol, *Colorlight Device Control Protocol – Class A*.
+
+**Unit LED** is an LED panel maker whose displays can be driven by Colorlight senders. The repository name `epi-uintled-colorlightZ6` contains a misspelling of "Unit LED" and is kept as-is because the plugin's assembly and package names are derived from it.
+
+### Device types
+
+| Type | Use for |
+|------|---------|
+| `colorlightz6` | Colorlight Z6. Kept for existing configurations. |
+| `colorlightsender` | Any Colorlight Class A sender. Currently identical to `colorlightz6`. |
+
+### Model support (Class A protocol)
+
+The table below shows what the **Class A protocol** supports on each model, according to Colorlight's protocol document. It is not a list of models this plugin has been tested with. So far the plugin has only been implemented and tested against the **Z6 over TCP**. Other models may need changes to the plugin's behavior before they work fully: for example, the S6/S6F is controlled over UDP and does not answer the heartbeat, so online status monitoring will not work on it yet, and its input numbering differs from the Z6's.
+
+| Model | TCP 9999 | UDP 9099 | Serial | Brightness | Show On/Off (blackout) | Preset recall |
+|-------|:--------:|:--------:|:------:|:----------:|:----------------------:|:-------------:|
+| Z6, X8/X8C, X16/X16B/X16C/X16D | ✓ | | RS-232 (PCB V5.1 only) | ✓ | ✓ | ✓ |
+| Z4/S4R, Z4F | ✓ | | | ✓ | ✓ | ✓ |
+| CM8 | ✓ | | | ✓ | ✓ | ✓ |
+| Z6 PRO/Z6 PRO G2 | ✓ | | RS-232 | ✓ | ✓ | ✓ |
+| X20(LAN), X16E/X8E | ✓ | | RS-232 | ✓ | ✓ | ✓ |
+| S6/S6F | | ✓ | | ✓ | ✓ | |
+| X20, X5/X6/X7, X12, S20/S20F, S5 PRO | | | RS-232 | ✓ | ✓ | ✓ |
+| X1/X3, X2s/X4s | | | TTL | ✓ | ✓ | ✓ |
+| S10 | | | RS-232 | ✓ | | |
+| S10 PRO, S10 PRO-U | | | RS-232 | ✓ | | ✓ |
+| S7 | | | RS-232 | ✓ | ✓ | |
+
+- Serial runs at 115200 baud, 8N1. TTL-level ports need a level converter to connect to a Crestron RS-232 port.
+- The **X2/X4** and **X4e** have no network control or serial port (USB only), so this plugin cannot control them.
+- **Input select** uses the Z6's input codes. Other models number their inputs differently, so input select is only expected to work on the Z6.
+- Colorlight senders that are not in the Class A document (for example X100 Pro, Z8t, VX10) are not supported.
+
+## Requirements
+
+- PepperDash Essentials **3.0.0** or later, on a Crestron **4-Series** processor. 3-Series is no longer supported.
+- The plugin DLL is now `PepperDash.Essentials.Plugins.Uintled.ColorlightZ6.dll`. When upgrading, delete older builds of this plugin from the processor's `plugins` folder (`PepperDash.Essentials.Plugin.Colorlight.Z6.dll` or `epi-colorlight-z6.4Series.dll`) so the device types are not registered twice.
 
 ## License
 
@@ -9,13 +50,13 @@ Provided under MIT license
 
 ### Communication options
 
-The ColorLight Z6 exposes three control integration methods. The EPI can use any of these via the standard Essentials `properties.control` configuration block:
+The plugin can use any of the following via the standard Essentials `properties.control` configuration block. Which ones a given sender supports is listed in [Model support](#model-support-class-a-protocol); the Z6 supports TCP, and RS-232 on PCB V5.1 units.
 
 - **TCP/IP** – connect to the device IP on **port 9999**.
-- **UDP** – send/receive datagrams to the device IP on **port 9099**.
-- **Serial / RS‑232** – connect at **115200 baud, 8 data bits, 1 stop bit, no parity** 
+- **UDP** – send/receive datagrams to the device IP on **port 9099** (S6/S6F only).
+- **Serial** – connect at **115200 baud, 8 data bits, 1 stop bit, no parity**.
 
-Use the appropriate Essentials transport type (tcpIp, udp, com) in the `control` section of the device configuration to match how the Z6 is wired in your system.
+Use the appropriate Essentials transport type (tcpIp, udp, com) in the `control` section of the device configuration to match how the sender is wired in your system.
 
 ### Device ID (`properties.id`)
 
@@ -115,7 +156,7 @@ Common cases:
 
 ## SIMPL Bridge Join Map
 
-The SIMPL bridge mapping is defined by the `ColorlightZ6JoinMap` class. The tables below show the join numbers, directions, types, and descriptions.
+The SIMPL bridge mapping is defined by the `ColorlightZ6BridgeJoinMap` class. The tables below show the join numbers, directions, types, and descriptions.
 
 ### Digital joins
 

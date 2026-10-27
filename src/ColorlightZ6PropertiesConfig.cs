@@ -2,9 +2,9 @@
 using PepperDash.Core;
 using System.Collections.Generic;
 
-namespace PepperDash.Essentials.Plugins.Colorlight.Z6
+namespace PepperDash.Essentials.Plugins
 {
-    public class ColorlightZ6Properties
+    public class ColorlightZ6PropertiesConfig
     {
         [JsonProperty("control")]
         public ControlPropertiesConfig Control { get; set; }
@@ -18,7 +18,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
         [JsonProperty("friendlyNames")]
         public List<ColorlightInputFriendlyName> FriendlyNames { get; set; }
 
-        public ColorlightZ6Properties()
+        public ColorlightZ6PropertiesConfig()
         {
             FriendlyNames = new List<ColorlightInputFriendlyName>();
         }

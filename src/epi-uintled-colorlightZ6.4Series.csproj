@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ProjectType>ProgramLibrary</ProjectType>
+    <TargetFramework>net8</TargetFramework>
+    <RootNamespace>PepperDash.Essentials.Plugins</RootNamespace>
+    <AssemblyName>PepperDash.Essentials.Plugins.Uintled.ColorlightZ6</AssemblyName>
+    <Configurations>Debug;Release</Configurations>
+    <Description>PepperDash Essentials plugin for Colorlight LED senders (Class A protocol), including the Z6.</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="PepperDashEssentials" Version="3.0.0-rc.19">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>
