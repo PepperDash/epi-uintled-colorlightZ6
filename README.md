@@ -16,20 +16,22 @@
 
 ### Model support (Class A protocol)
 
-| Model | TCP 9999 | UDP 9099 | Brightness | Show On/Off (blackout) | Preset recall |
-|-------|:--------:|:--------:|:----------:|:----------------------:|:-------------:|
-| Z6, X8/X8C, X16/X16B/X16C/X16D | ✓ | | ✓ | ✓ | ✓ |
-| Z4/S4R, Z4F | ✓ | | ✓ | ✓ | ✓ |
-| CM8 | ✓ | | ✓ | ✓ | ✓ |
-| Z6 PRO/Z6 PRO G2 | ✓ | | ✓ | ✓ | ✓ |
-| X20(LAN), X16E/X8E | ✓ | | ✓ | ✓ | ✓ |
-| S6/S6F | | ✓ | ✓ | ✓ | |
-| X1/X3, X2/X4, X2s/X4s, X4e, X5/X6/X7, X12, X20, S20/S20F, S5 PRO | | | ✓ | ✓ | ✓ |
-| S10 | | | ✓ | | |
-| S10 PRO, S10 PRO-U | | | ✓ | | ✓ |
-| S7 | | | ✓ | ✓ | |
+| Model | TCP 9999 | UDP 9099 | Serial | Brightness | Show On/Off (blackout) | Preset recall |
+|-------|:--------:|:--------:|:------:|:----------:|:----------------------:|:-------------:|
+| Z6, X8/X8C, X16/X16B/X16C/X16D | ✓ | | RS-232 (PCB V5.1 only) | ✓ | ✓ | ✓ |
+| Z4/S4R, Z4F | ✓ | | | ✓ | ✓ | ✓ |
+| CM8 | ✓ | | | ✓ | ✓ | ✓ |
+| Z6 PRO/Z6 PRO G2 | ✓ | | RS-232 | ✓ | ✓ | ✓ |
+| X20(LAN), X16E/X8E | ✓ | | RS-232 | ✓ | ✓ | ✓ |
+| S6/S6F | | ✓ | | ✓ | ✓ | |
+| X20, X5/X6/X7, X12, S20/S20F, S5 PRO | | | RS-232 | ✓ | ✓ | ✓ |
+| X1/X3, X2s/X4s | | | TTL | ✓ | ✓ | ✓ |
+| S10 | | | RS-232 | ✓ | | |
+| S10 PRO, S10 PRO-U | | | RS-232 | ✓ | | ✓ |
+| S7 | | | RS-232 | ✓ | ✓ | |
 
-- Models with no network control port are controlled over serial (115200 baud, 8N1). Most use RS-232; the Z4F and X4e use TTL-level serial and need a level converter.
+- Serial runs at 115200 baud, 8N1. TTL-level ports need a level converter to connect to a Crestron RS-232 port.
+- The **X2/X4** and **X4e** have no network control or serial port (USB only), so this plugin cannot control them.
 - **Input select** uses the Z6's input codes. Other models number their inputs differently, so input select is only expected to work on the Z6.
 - Colorlight senders that are not in the Class A document (for example X100 Pro, Z8t, VX10) are not supported.
 
@@ -46,7 +48,7 @@ Provided under MIT license
 
 ### Communication options
 
-The plugin can use any of the following via the standard Essentials `properties.control` configuration block. Which ones a given sender supports is listed in [Model support](#model-support-class-a-protocol); the Z6 supports TCP and serial.
+The plugin can use any of the following via the standard Essentials `properties.control` configuration block. Which ones a given sender supports is listed in [Model support](#model-support-class-a-protocol); the Z6 supports TCP, and RS-232 on PCB V5.1 units.
 
 - **TCP/IP** – connect to the device IP on **port 9999**.
 - **UDP** – send/receive datagrams to the device IP on **port 9099** (S6/S6F only).
