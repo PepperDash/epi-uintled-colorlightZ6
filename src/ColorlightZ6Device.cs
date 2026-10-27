@@ -26,6 +26,10 @@ namespace PepperDash.Essentials.Plugins
 		private readonly ColorlightStatusMonitor _statusMonitor;
 		private readonly ushort _id;
 		public IntFeedback InputNumberFeedback;
+		public IntFeedback BrightnessFeedback;
+		public StringFeedback ModelFeedback;
+		private ushort _brightness;
+		private string _model = string.Empty;
 		public List<BoolFeedback> InputFeedback;
 		private List<bool> _inputFeedback;
 		private int _inputNumber;
@@ -68,6 +72,8 @@ namespace PepperDash.Essentials.Plugins
 			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
 
 			InputNumberFeedback = new IntFeedback(Key + "-InputNumberFeedback", () => InputNumber);
+			BrightnessFeedback = new IntFeedback(Key + "-BrightnessFeedback", () => _brightness);
+			ModelFeedback = new StringFeedback(Key + "-ModelFeedback", () => _model);
 
 			this.LogInformation("Creating Colorlight Z6 controller with id: {Id}", _id);
 
@@ -130,11 +136,49 @@ namespace PepperDash.Essentials.Plugins
 				if (frame.Type == ColorlightFrameType.StatusReply)
 				{
 					_statusMonitor.StatusReplyReceived();
+					ApplyStatusReply(frame.Bytes);
 				}
 				else
 				{
 					_statusMonitor.DataReceived();
 				}
+			}
+		}
+
+		/// <summary>
+		/// Updates feedback from a Response Frame for Detecting Sender Parameters (0xF1 ... 0x16 0x01).
+		/// Offsets per the Class A protocol: 12 model, 15 flags DWORD 0 (bit0 = 1 when blackout is off),
+		/// 23 brightness as a little-endian float 0-1.0.
+		/// </summary>
+		private void ApplyStatusReply(byte[] frame)
+		{
+			if (frame.Length < 27)
+				return;
+
+			var model = ColorlightModels.GetName(frame[12]);
+			if (model != _model)
+			{
+				_model = model;
+				ModelFeedback.FireUpdate();
+			}
+
+			var blackoutOff = (frame[15] & 0x01) == 0x01;
+			if (_powerIsOn != blackoutOff || _powerIsOff == blackoutOff)
+			{
+				_powerIsOn = blackoutOff;
+				_powerIsOff = !blackoutOff;
+				UpdatePowerFeedback();
+			}
+
+			var level = BitConverter.ToSingle(frame, 23);
+			if (float.IsNaN(level))
+				return;
+
+			var brightness = (ushort)Math.Round(Math.Clamp(level, 0f, 1f) * 65535);
+			if (brightness != _brightness)
+			{
+				_brightness = brightness;
+				BrightnessFeedback.FireUpdate();
 			}
 		}
 
@@ -343,6 +387,8 @@ namespace PepperDash.Essentials.Plugins
 			trilist.SetSigTrueAction(joinMap.PowerOff.JoinNumber, PowerOff);
 			trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset); 
 			trilist.SetUShortSigAction(joinMap.Brightness.JoinNumber, SetBrightness);
+			BrightnessFeedback.LinkInputSig(trilist.UShortInput[joinMap.Brightness.JoinNumber]);
+			ModelFeedback.LinkInputSig(trilist.StringInput[joinMap.Model.JoinNumber]);
 
 			// digital input-select buttons (11-17) mapped to logical buttons 1-7,
 			// honoring any hideInput settings and executing configured actions
@@ -386,6 +432,9 @@ namespace PepperDash.Essentials.Plugins
 
                 if (InputNumberFeedback != null)
                     InputNumberFeedback.FireUpdate();
+
+				BrightnessFeedback.FireUpdate();
+				ModelFeedback.FireUpdate();
 
 				UpdateBooleanFeedback(InputNumber);
 
@@ -539,10 +588,11 @@ namespace PepperDash.Essentials.Plugins
 
 		public void SetBrightness(ushort brightness)
 		{
-			// Scale Crestron ushort 0-65535 to a float 0.00-1.00
-			// Round to 2 decimal places so key values map as:
-			//  65535 -> 1.00f, 49149 -> 0.75f, 32767 -> 0.50f, 16383 -> 0.25f
-			var brightnessPercent = (float)Math.Round(brightness / 65535.0f, 2);
+			// The protocol takes any float from 0 to 1.0, so send the full SIMPL resolution
+			var brightnessPercent = brightness / 65535.0f;
+
+			_brightness = brightness;
+			BrightnessFeedback.FireUpdate();
 
 			this.LogVerbose("SetBrightness: Level {Level} Percent {Percent}", brightness, brightnessPercent * 100);
 

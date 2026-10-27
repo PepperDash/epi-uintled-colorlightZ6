@@ -191,8 +191,8 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6BridgeJoinMap` class. Th
 
 | Join # | Name              | Direction   | Type     | Description                                                                                                                                     |
 |--------|-------------------|------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1      | PowerOff          | ToFromSIMPL| Digital  | Command + fake feedback: off state. Clears when device goes offline.                                                                            |
-| 2      | PowerOn           | ToFromSIMPL| Digital  | Command + fake feedback: on state. Clears when device goes offline.                                                                             |
+| 1      | PowerOff          | ToFromSIMPL| Digital  | Command: blackout on. Feedback: high while the sender is in blackout (from the status poll; set immediately when pressed). Clears when the connection drops. |
+| 2      | PowerOn           | ToFromSIMPL| Digital  | Command: blackout off. Feedback: high while the sender is showing the image (from the status poll; set immediately when pressed). Clears when the connection drops. |
 | 11–17  | InputSelectOffset | ToFromSIMPL| Digital  | One-hot input select and feedback array. 11–17 map to inputs 1–7 (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2). Honors `friendlyNames.hideInput`. |
 | 50     | IsOnline          | ToSIMPL    | Digital  | High when the device is considered online by the communication monitor.                                                                         |
 
@@ -200,7 +200,7 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6BridgeJoinMap` class. Th
 
 | Join # | Name        | Direction   | Type    | Description                                                                                                                                  |
 |--------|-------------|------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| 33     | Brightness  | FromSIMPL  | Analog  | Brightness level, 0–65535. The EPI maps this to a float 0.00–1.00 and sends it as a 4-byte IEEE 754 float.                                   |
+| 33     | Brightness  | ToFromSIMPL| Analog  | Brightness level, 0–65535, sent at full resolution as a float 0–1.0. Feedback: the sender's actual brightness from the status poll. |
 | 21     | Preset      | FromSIMPL  | Analog  | Preset recall. SIMPL uses 1-based indexing; the EPI subtracts 1 and sends a 0-based preset index.                                            |
 | 11     | InputSelect | ToFromSIMPL| Analog  | Input select command and fake feedback. 1–7 map to HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2. Resets to 0 when the device goes offline.    |
 
@@ -209,6 +209,7 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6BridgeJoinMap` class. Th
 | Join # | Name             | Direction | Description                                                                                   |
 |--------|------------------|-----------|-----------------------------------------------------------------------------------------------|
 | 1      | DeviceName       | ToSimpl   | Device name, taken from the Essentials device config (`name`) and pushed to SIMPL by the EPI. |
+| 2      | Model            | ToSimpl   | Sender model from the status poll (e.g. Z6, S6F). Blank until the first status reply. |
 | 11     | InputNamesOffset | ToSimpl   | Input names (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2, ...), starting at this offset.       |
 
 
