@@ -41,6 +41,7 @@ The table below shows what the **Class A protocol** supports on each model, acco
 
 - PepperDash Essentials **3.0.0** or later, on a Crestron **4-Series** processor. 3-Series is no longer supported.
 - The plugin DLL is now `PepperDash.Essentials.Plugins.Uintled.ColorlightZ6.dll`. When upgrading, delete older builds of this plugin from the processor's `plugins` folder (`PepperDash.Essentials.Plugin.Colorlight.Z6.dll` or `epi-colorlight-z6.4Series.dll`) so the device types are not registered twice.
+- **Check `properties.id` when upgrading.** The sender id is now sent in the byte order the protocol requires. Use **`0` for a single sender** or **`65535` for all senders** (for example, several cascaded senders that form one display); neither value is affected by this change. Any other value now addresses a different sender than before. See [Device ID](#device-id-propertiesid).
 
 ## License
 
@@ -60,24 +61,27 @@ Use the appropriate Essentials transport type (tcpIp, udp, com) in the `control`
 
 ### Device ID (`properties.id`)
 
-The ColorLight Z6 EPI uses an `id` value in the Essentials configuration to determine which device ID to embed in all commands.
+The plugin uses an `id` value in the Essentials configuration to select which sender each command is for. In the Class A protocol this is the sender's **index**: `0` is the first sender, `1` the second, and so on when senders are cascaded. `65535` (0xFFFF) broadcasts to all senders.
+
+**Use `0` for a single sender, or `65535` for all senders.** A command sent to `0` reaches only the first sender, so when several cascaded senders drive one display, use `65535` so they all change together.
 
 - Config path: `properties.id`
 - Type: unsigned 16-bit integer (0–65535), specified as a **decimal** value in JSON.
-- Wire format: the value is split into high/low bytes and sent as:
-	- High byte: `(byte)(id >> 8)`
-	- Low byte: `(byte)(id & 0xFF)`
+- Wire format: little-endian, as the protocol requires (low byte first, then high byte).
 
 Common cases:
 
+- `id = 0`
+	- Wire bytes: `0x00 0x00`
+	- The first (or only) sender. Use this for a single sender.
+
 - `id = 1`
-	- Wire bytes: `0x00 0x01`
-	- Example usage: target a specific device with ID 1.
+	- Wire bytes: `0x01 0x00`
+	- The second sender in a cascade.
 
 - `id = 65535`
 	- Wire bytes: `0xFF 0xFF`
-	- Example usage: broadcast / "unknown ID" mode as allowed by the manufacturer.
-		This is how to send `\xFF\xFF` on the wire from config.
+	- Broadcast to all senders.
 
 > Note: JSON does **not** support hex literals like `0xFFFF`; always enter the decimal
 > equivalent (`65535`) in the Essentials configuration.
@@ -96,7 +100,7 @@ Common cases:
 				"control": {
 					// standard Essentials TCP/UDP control config here
 				},
-				"id": 1,       // sends 0x00 0x01 as the ID bytes
+				"id": 0,       // first (or only) sender; sends 0x00 0x00 as the ID bytes
 				"friendlyNames": [
 					{
 						"inputNumber": 1,       // button 11

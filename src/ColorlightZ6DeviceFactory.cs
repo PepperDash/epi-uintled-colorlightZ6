@@ -21,7 +21,7 @@ namespace PepperDash.Essentials.Plugins
         {
 			Debug.LogDebug("[{Key}] Factory Attempting to create new device from type: {Type}", dc.Key, dc.Type);
 
-            var config = dc.Properties.ToObject<ColorlightZ6PropertiesConfig>();
+            var config = dc.Properties == null ? null : dc.Properties.ToObject<ColorlightZ6PropertiesConfig>();
 	        if (config == null)
 	        {
 				Debug.LogError("[{Key}] Factory: failed to read properties config for {Name}", dc.Key, dc.Name);

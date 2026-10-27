@@ -1,5 +1,4 @@
 ﻿using Crestron.SimplSharp;
-using Crestron.SimplSharpPro.CrestronThread;
 using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
 using PepperDash.Core.Logging;
@@ -13,11 +12,13 @@ namespace PepperDash.Essentials.Plugins
 {
 	public class ColorlightZ6Device : EssentialsBridgeableDevice, ICommunicationMonitor, IDisposable
 	{
-		private Thread _queueProcess;
-		private readonly CrestronQueue<byte[]> _myQueue = new CrestronQueue<byte[]>(100);
 		private CTimer _heartbeatTimer;
 		// per manufacturer documentation, heartbeat must be sent every 1-second
 		private const long HeartbeatTime = 1000;
+		private static readonly byte[] HeartbeatFrame = { 0x99, 0x99, 0x04, 0x00 };
+		// matches the Essentials default AutoReconnectIntervalMs
+		private const int ReconnectThrottleMs = 5000;
+		private DateTime _lastConnectAttempt = DateTime.MinValue;
 		private readonly ushort _id;
 		public IntFeedback InputNumberFeedback;
 		public List<BoolFeedback> InputFeedback;
@@ -104,13 +105,16 @@ namespace PepperDash.Essentials.Plugins
 
 		private void CommunicationsOnBytesReceived(object sender, GenericCommMethodReceiveBytesArgs genericCommMethodReceiveBytesArgs)
 		{
-			this.LogVerbose("CommunicationsOnBytesReceived: {Bytes}", BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes));
+			var bytes = genericCommMethodReceiveBytesArgs.Bytes;
 
-			_myQueue.Enqueue(genericCommMethodReceiveBytesArgs.Bytes);
+			if (IsHeartbeat(bytes)) return;
 
-			if (_queueProcess == null || _queueProcess.ThreadState == Thread.eThreadStates.ThreadFinished) return;
+			this.LogVerbose("CommunicationsOnBytesReceived: {Bytes}", BitConverter.ToString(bytes));
+		}
 
-			_queueProcess = new Thread(ProcessQueue, null);
+		private static bool IsHeartbeat(byte[] bytes)
+		{
+			return bytes != null && bytes.SequenceEqual(HeartbeatFrame);
 		}
 
 		private void SocketOnConnectionChange(object sender, GenericSocketStatusChageEventArgs genericSocketStatusChageEventArgs)
@@ -132,17 +136,6 @@ namespace PepperDash.Essentials.Plugins
 			// Keep the existing online feedback behavior.
 			CommunicationMonitor.IsOnlineFeedback.FireUpdate();
 		}
-
-		private object ProcessQueue(object obj)
-		{
-			while (!_myQueue.IsEmpty)
-			{
-				var myResponse = _myQueue.Dequeue();
-
-				this.LogVerbose("ProcessQueue: {Response}", myResponse);
-			}
-			return null;
-		}	
 
 		public int InputNumber
         {
@@ -423,16 +416,30 @@ namespace PepperDash.Essentials.Plugins
 					break;
 			}
 
-			var command = new byte[]
-			{
-				0x33, 0x00, 0x12, 0x00, 0x00, 0x00,
-				(byte)(_id >> 8), (byte)(_id & 0xFF), 0xFF,
-				0x00, 0x00, 0x00, 0x00,
-				0x00, 0x00, 0x00,
-				inputCode
-			};
+			// Setting Input Video Source (0x33): layer 0 (main), then the input code.
+			// The switch only takes effect after a Batch Operation (0x6f) frame.
+			SendBytes(BuildFrame(0x33, 0x00, inputCode));
+			SendBytes(BuildFrame(0x6F));
+		}
 
-			SendBytes(command);
+		/// <summary>
+		/// Builds a Class A protocol frame: command byte, total frame length (little-endian),
+		/// sender id (little-endian), 0xFF, zero padding to 16 bytes, then the payload.
+		/// </summary>
+		private byte[] BuildFrame(byte command, params byte[] payload)
+		{
+			var length = 16 + payload.Length;
+			var frame = new byte[length];
+
+			frame[0] = command;
+			frame[2] = (byte)(length & 0xFF);
+			frame[3] = (byte)(length >> 8);
+			frame[6] = (byte)(_id & 0xFF);
+			frame[7] = (byte)(_id >> 8);
+			frame[8] = 0xFF;
+			Array.Copy(payload, 0, frame, 16, payload.Length);
+
+			return frame;
 		}
 
 		public void SendBytes(byte[] command)
@@ -445,20 +452,38 @@ namespace PepperDash.Essentials.Plugins
 
 			if (!Communications.IsConnected)
 			{
-				this.LogVerbose("SendBytes: communications not connected, attempting connection...");
-				Communications.Connect();
+				TryReconnect();
 			}
 
-			this.LogVerbose("SendBytes: {Command}", BitConverter.ToString(command));
+			if (!IsHeartbeat(command))
+			{
+				this.LogVerbose("SendBytes: {Command}", BitConverter.ToString(command));
+			}
+
 			Communications.SendBytes(command);
+		}
+
+		/// <summary>
+		/// Attempts a reconnect at most once per ReconnectThrottleMs, and only when the
+		/// client is not already reconnecting on its own (autoReconnect in config).
+		/// </summary>
+		private void TryReconnect()
+		{
+			var autoReconnect = Communications as IAutoReconnect;
+			if (autoReconnect != null && autoReconnect.AutoReconnect)
+				return;
+
+			if ((DateTime.UtcNow - _lastConnectAttempt).TotalMilliseconds < ReconnectThrottleMs)
+				return;
+
+			_lastConnectAttempt = DateTime.UtcNow;
+			this.LogVerbose("SendBytes: communications not connected, attempting connection...");
+			Communications.Connect();
 		}
 
 		private void SendHeartbeat()
 		{
-			//var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
-			var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
-
-			SendBytes(command);
+			SendBytes(HeartbeatFrame);
 		}
 
 		public void SetBrightness(ushort brightness)
@@ -472,26 +497,17 @@ namespace PepperDash.Essentials.Plugins
 
 			var brightnessBytes = BitConverter.GetBytes(brightnessPercent);
 
-			var commandBase = new byte[]
-            {
-                0x21, 0x00, 0x14, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00
-            };
-
-			var command = commandBase.Concat(brightnessBytes).ToArray();
-
-			SendBytes(command);
+			SendBytes(BuildFrame(0x21, brightnessBytes));
 		}
 
 		public void RecallPreset(ushort preset)
 		{
-			var command = new byte[]
-            {
-                0x74, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, (byte)(preset - 1) // per manufacturer documentation, preset value is 0-based, but SIMPL uses 1-based
-            };
-			
-			SendBytes(command);
+			// The protocol supports presets 1-16; ignore anything else (0 would otherwise send 0xFF)
+			if (preset < 1 || preset > 16)
+				return;
+
+			// per manufacturer documentation, preset value is 0-based, but SIMPL uses 1-based
+			SendBytes(BuildFrame(0x74, (byte)(preset - 1)));
 		}
 
 		/// <summary>
@@ -503,13 +519,8 @@ namespace PepperDash.Essentials.Plugins
 			_powerIsOff = false;
 			UpdatePowerFeedback();
 
-			var command = new byte[]
-            {
-                0x11, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x01
-            };
-
-			SendBytes(command);
+			// Blackout (0x11): 0x01 disables blackout (show on)
+			SendBytes(BuildFrame(0x11, 0x01));
 		}
 
 		/// <summary>
@@ -521,13 +532,8 @@ namespace PepperDash.Essentials.Plugins
 			_powerIsOff = true;
 			UpdatePowerFeedback();
 
-			var command = new byte[]
-            {
-                0x11, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00
-            };
-
-			SendBytes(command);
+			// Blackout (0x11): 0x00 enables blackout (show off)
+			SendBytes(BuildFrame(0x11, 0x00));
 		}
 
 		/// <summary>
