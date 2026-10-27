@@ -275,8 +275,6 @@ namespace PepperDash.Essentials.Plugins
 		
 		public override void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge)
 		{
-			this.LogInformation("Connecting to SIMPL Bridge with joinStart {JoinStart}", joinStart);
-
 			var joinMap = new ColorlightZ6BridgeJoinMap(joinStart);
 			_trilist = trilist;
 			_joinMap = joinMap;
@@ -293,8 +291,7 @@ namespace PepperDash.Essentials.Plugins
 				joinMap.SetCustomJoinData(customJoins);
 			}
 
-			this.LogWarning("Linking to Trilist {TrilistId:X}", trilist.ID);
-			this.LogInformation("Linking to Bridge Type {BridgeType}", GetType().Name);
+			this.LogInformation("Linking to bridge {TrilistId:X} at joinStart {JoinStart}", trilist.ID, joinStart);
 
 			trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
 

@@ -24,7 +24,7 @@ namespace PepperDash.Essentials.Plugins
             var config = dc.Properties.ToObject<ColorlightZ6PropertiesConfig>();
 	        if (config == null)
 	        {
-				Debug.LogInformation("[{Key}] Factory: failed to read properties config for {Name}", dc.Key, dc.Name);
+				Debug.LogError("[{Key}] Factory: failed to read properties config for {Name}", dc.Key, dc.Name);
 				return null;
 	        }
 
@@ -32,7 +32,7 @@ namespace PepperDash.Essentials.Plugins
 	        
 			if(comm != null) return new ColorlightZ6Device(dc.Key, dc.Name, comm, config);
 
-			Debug.LogInformation("[{Key}] Factory Notice: No control object present for device {Name}", dc.Key, dc.Name);
+			Debug.LogError("[{Key}] Factory Notice: No control object present for device {Name}", dc.Key, dc.Name);
 			return null;
         }
 
