@@ -16,7 +16,7 @@
 
 ### Model support (Class A protocol)
 
-The table below shows what the **Class A protocol** supports on each model, according to Colorlight's protocol document. It is not a list of models this plugin has been tested with. So far the plugin has only been implemented and tested against the **Z6 over TCP**. Other models may need changes to the plugin's behavior before they work fully: for example, the S6/S6F is controlled over UDP and does not answer the heartbeat, so online status monitoring will not work on it yet, and its input numbering differs from the Z6's.
+The table below shows what the **Class A protocol** supports on each model, according to Colorlight's protocol document. It is not a list of models this plugin has been tested with. So far the plugin has only been implemented and tested against the **Z6 over TCP**. Other models may need changes to the plugin's behavior before they work fully: for example, the S6/S6F is controlled over UDP, has no preset recall, and numbers its inputs differently from the Z6.
 
 | Model | TCP 9999 | UDP 9099 | Serial | Brightness | Show On/Off (blackout) | Preset recall |
 |-------|:--------:|:--------:|:------:|:----------:|:----------------------:|:-------------:|
@@ -85,6 +85,31 @@ Common cases:
 
 > Note: JSON does **not** support hex literals like `0xFFFF`; always enter the decimal
 > equivalent (`65535`) in the Essentials configuration.
+
+### Online status
+
+The plugin polls the sender for its status (Class A "Detecting Sender Parameters") and reports the device online only while valid replies come back. The poll goes to `properties.id`, or to sender `0` when `id` is `65535` (a broadcast query would get replies from every sender at once).
+
+| Situation | Status | Logged once when it starts |
+|---|---|---|
+| Valid status replies | Online | — |
+| Data arriving (e.g. TCP heartbeats) but no status reply | Warning | "Connected but no status reply from sender {id}. Check properties.id." |
+| Nothing received | Warning, then offline | "No reply from sender {id}. Check network/IP and properties.id." |
+| Replies resume | Online | "Sender {id} responding again." |
+
+Default timing is a poll every 30 s, Warning after 2 minutes without a reply, and offline after 5 minutes. To change it, add the standard Essentials block to `properties` (values in ms):
+
+```jsonc
+"communicationMonitorProperties": {
+	"pollInterval": 30000,
+	"timeToWarning": 120000,
+	"timeToError": 300000
+}
+```
+
+`pollInterval` must be less than `timeToWarning`, which must not be more than `timeToError`; both times must be at least 5000.
+
+Over TCP the plugin also sends the protocol's 1-second heartbeat to keep the connection open. It is not sent over UDP or serial, where the protocol doesn't use it.
 
 ### Example Essentials configuration snippet
 

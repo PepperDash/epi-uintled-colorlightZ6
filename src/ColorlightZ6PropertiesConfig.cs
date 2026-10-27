@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using PepperDash.Core;
+using PepperDash.Essentials.Core;
 using System.Collections.Generic;
 
 namespace PepperDash.Essentials.Plugins
@@ -11,6 +12,13 @@ namespace PepperDash.Essentials.Plugins
 
         [JsonProperty("id")]
         public ushort Id { get; set; }
+
+        /// <summary>
+        /// Optional override of the status poll timing: pollInterval, timeToWarning and timeToError in ms.
+        /// Defaults are 30 s, 2 min and 5 min.
+        /// </summary>
+        [JsonProperty("communicationMonitorProperties")]
+        public CommunicationMonitorConfig CommunicationMonitorProperties { get; set; }
 
         /// <summary>
         /// Optional per-input configuration for friendly names and visibility.

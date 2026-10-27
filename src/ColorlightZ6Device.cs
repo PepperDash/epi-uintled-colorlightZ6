@@ -19,6 +19,11 @@ namespace PepperDash.Essentials.Plugins
 		// matches the Essentials default AutoReconnectIntervalMs
 		private const int ReconnectThrottleMs = 5000;
 		private DateTime _lastConnectAttempt = DateTime.MinValue;
+		private const long DefaultPollTimeMs = 30000;
+		private const long DefaultWarningTimeMs = 120000;
+		private const long DefaultErrorTimeMs = 300000;
+		private readonly ColorlightFrameBuffer _frameBuffer = new ColorlightFrameBuffer();
+		private readonly ColorlightStatusMonitor _statusMonitor;
 		private readonly ushort _id;
 		public IntFeedback InputNumberFeedback;
 		public List<BoolFeedback> InputFeedback;
@@ -49,13 +54,20 @@ namespace PepperDash.Essentials.Plugins
 			}
 
 			Communications.BytesReceived += CommunicationsOnBytesReceived;
-			// Heartbeat every 2 minutes, retry connection every 3 minutes, mark offline after 5 minutes without successful communication
-			CommunicationMonitor = new GenericCommunicationMonitor(this, Communications, 120000, 180000, 300000, SendHeartbeat);
+
+			_id = config.Id;
+
+			// Online status comes from replies to a status poll; timing can be overridden in config
+			var monitorConfig = config.CommunicationMonitorProperties;
+			var pollTime = monitorConfig != null && monitorConfig.PollInterval > 0 ? monitorConfig.PollInterval : DefaultPollTimeMs;
+			var warningTime = monitorConfig != null && monitorConfig.TimeToWarning > 0 ? monitorConfig.TimeToWarning : DefaultWarningTimeMs;
+			var errorTime = monitorConfig != null && monitorConfig.TimeToError > 0 ? monitorConfig.TimeToError : DefaultErrorTimeMs;
+
+			_statusMonitor = new ColorlightStatusMonitor(this, pollTime, warningTime, errorTime, StatusSenderId, PollStatus);
+			CommunicationMonitor = _statusMonitor;
 			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
 
 			InputNumberFeedback = new IntFeedback(Key + "-InputNumberFeedback", () => InputNumber);
-
-			_id = config.Id;
 
 			this.LogInformation("Creating Colorlight Z6 controller with id: {Id}", _id);
 
@@ -70,10 +82,11 @@ namespace PepperDash.Essentials.Plugins
 			Communications.Connect();
 			CommunicationMonitor.Start();
 
-			// Ensure heartbeat timer is running for all transport types (TCP, COM, UDP, SSH).
-			// Previously this was only started from the socket connection-change event,
-			// which meant non-socket transports (e.g. COM) never sent the required 1s heartbeat.
-			StartHeartbeatTimer();
+			// Per the protocol, the 1 s heartbeat is only needed (and only supported) over TCP
+			if (_config.Control != null && _config.Control.Method == eControlMethod.Tcpip)
+			{
+				StartHeartbeatTimer();
+			}
 
 			base.Initialize();
 		}	
@@ -107,9 +120,41 @@ namespace PepperDash.Essentials.Plugins
 		{
 			var bytes = genericCommMethodReceiveBytesArgs.Bytes;
 
-			if (IsHeartbeat(bytes)) return;
+			if (!IsHeartbeat(bytes))
+			{
+				this.LogVerbose("CommunicationsOnBytesReceived: {Bytes}", BitConverter.ToString(bytes));
+			}
 
-			this.LogVerbose("CommunicationsOnBytesReceived: {Bytes}", BitConverter.ToString(bytes));
+			foreach (var frame in _frameBuffer.Append(bytes))
+			{
+				if (frame.Type == ColorlightFrameType.StatusReply)
+				{
+					_statusMonitor.StatusReplyReceived();
+				}
+				else
+				{
+					_statusMonitor.DataReceived();
+				}
+			}
+		}
+
+		/// <summary>
+		/// Sender the status poll is addressed to. A broadcast (65535) query would get colliding
+		/// replies from every sender, so broadcast configs poll the first sender.
+		/// </summary>
+		private ushort StatusSenderId
+		{
+			get { return _id == 0xFFFF ? (ushort)0 : _id; }
+		}
+
+		/// <summary>
+		/// Detecting Sender Parameters (0x01 ... 0x16); the reply drives online status.
+		/// </summary>
+		private void PollStatus()
+		{
+			var frame = BuildFrameFor(StatusSenderId, 0x01, 0x16);
+			frame[14] = 0x01;
+			SendBytes(frame);
 		}
 
 		private static bool IsHeartbeat(byte[] bytes)
@@ -126,8 +171,9 @@ namespace PepperDash.Essentials.Plugins
 				return;
 			}
 
-			// On socket disconnect, clear feedback. Heartbeat now runs
+			// On socket disconnect, drop any partial frame and clear feedback. Heartbeat now runs
 			// continuously and is only stopped during device disposal.
+			_frameBuffer.Clear();
 			ResetFakeFeedback();
 		}
 
@@ -428,14 +474,19 @@ namespace PepperDash.Essentials.Plugins
 		/// </summary>
 		private byte[] BuildFrame(byte command, params byte[] payload)
 		{
+			return BuildFrameFor(_id, command, payload);
+		}
+
+		private static byte[] BuildFrameFor(ushort senderId, byte command, params byte[] payload)
+		{
 			var length = 16 + payload.Length;
 			var frame = new byte[length];
 
 			frame[0] = command;
 			frame[2] = (byte)(length & 0xFF);
 			frame[3] = (byte)(length >> 8);
-			frame[6] = (byte)(_id & 0xFF);
-			frame[7] = (byte)(_id >> 8);
+			frame[6] = (byte)(senderId & 0xFF);
+			frame[7] = (byte)(senderId >> 8);
 			frame[8] = 0xFF;
 			Array.Copy(payload, 0, frame, 16, payload.Length);
 
@@ -552,6 +603,7 @@ namespace PepperDash.Essentials.Plugins
 		public void Dispose()
 		{
 			StopHeartbeatTimer();
+			_statusMonitor.Stop();
 		}
 	}
 }
