@@ -502,9 +502,16 @@ namespace PepperDash.Essentials.Plugins
 
 		public void RecallPreset(ushort preset)
 		{
-			// The protocol supports presets 1-16; ignore anything else (0 would otherwise send 0xFF)
-			if (preset < 1 || preset > 16)
+			// 0 means "no preset" (SIMPL analogs start at and are often cleared to 0); ignore it silently
+			if (preset == 0)
 				return;
+
+			// The protocol supports presets 1-16
+			if (preset > 16)
+			{
+				this.LogWarning("RecallPreset: preset {Preset} is out of range (1-16), ignored", preset);
+				return;
+			}
 
 			// per manufacturer documentation, preset value is 0-based, but SIMPL uses 1-based
 			SendBytes(BuildFrame(0x74, (byte)(preset - 1)));
