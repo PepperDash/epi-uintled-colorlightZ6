@@ -16,6 +16,8 @@
 
 ### Model support (Class A protocol)
 
+The table below shows what the **Class A protocol** supports on each model, according to Colorlight's protocol document. It is not a list of models this plugin has been tested with. So far the plugin has only been implemented and tested against the **Z6 over TCP**. Other models may need changes to the plugin's behavior before they work fully: for example, the S6/S6F is controlled over UDP and does not answer the heartbeat, so online status monitoring will not work on it yet, and its input numbering differs from the Z6's.
+
 | Model | TCP 9999 | UDP 9099 | Serial | Brightness | Show On/Off (blackout) | Preset recall |
 |-------|:--------:|:--------:|:------:|:----------:|:----------------------:|:-------------:|
 | Z6, X8/X8C, X16/X16B/X16C/X16D | ✓ | | RS-232 (PCB V5.1 only) | ✓ | ✓ | ✓ |
