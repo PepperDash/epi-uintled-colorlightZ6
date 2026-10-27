@@ -111,6 +111,39 @@ Default timing is a poll every 30 s, Warning after 2 minutes without a reply, an
 
 Over TCP the plugin also sends the protocol's 1-second heartbeat to keep the connection open. It is not sent over UDP or serial, where the protocol doesn't use it.
 
+### Input codes
+
+Each input number (buttons 11–17, analog 11) is sent to the sender as a protocol input code. The defaults follow the Z6:
+
+| Input | Button | Default name | Default code |
+|---|---|---|---|
+| 1 | 11 | HDMI | 16 (0x10) |
+| 2 | 12 | DVI | 80 (0x50) |
+| 3 | 13 | DVI-2 | 2 (0x02) |
+| 4 | 14 | DVI-3 | 3 (0x03) |
+| 5 | 15 | DVI-4 | 4 (0x04) |
+| 6 | 16 | SDI | 32 (0x20) |
+| 7 | 17 | SDI-2 | 33 (0x21) |
+
+For other models, set `inputCode` (decimal) on that input's `friendlyNames` entry. Codes from the Class A protocol for models other than the Z6:
+
+| Inputs | Codes |
+|---|---|
+| HDMI1–HDMI7 | 16–23 (0x10–0x17) |
+| DP1–DP7 | 48–55 (0x30–0x37) |
+| DVI1–DVI12 | 1–12 (0x01–0x0C) |
+| DVI13–DVI16 | 144–147 (0x90–0x93) |
+| SDI1–SDI16 | 32–47 (0x20–0x2F) |
+| VGA, AV1, AV2 | 64, 65, 66 (0x40–0x42) |
+
+```jsonc
+"friendlyNames": [
+	{ "inputNumber": 2, "name": "DVI 1", "inputCode": 1 }   // DVI1 on a non-Z6 sender
+]
+```
+
+Input feedback comes from the sender's current input in the status poll, matched back to an input number through these codes. A code that matches no input number reports 0.
+
 ### Example Essentials configuration snippet
 
 ```jsonc
@@ -193,7 +226,7 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6BridgeJoinMap` class. Th
 |--------|-------------------|------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------|
 | 1      | PowerOff          | ToFromSIMPL| Digital  | Command: blackout on. Feedback: high while the sender is in blackout (from the status poll; set immediately when pressed). Clears when the connection drops. |
 | 2      | PowerOn           | ToFromSIMPL| Digital  | Command: blackout off. Feedback: high while the sender is showing the image (from the status poll; set immediately when pressed). Clears when the connection drops. |
-| 11–17  | InputSelectOffset | ToFromSIMPL| Digital  | One-hot input select and feedback array. 11–17 map to inputs 1–7 (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2). Honors `friendlyNames.hideInput`. |
+| 11–17  | InputSelectOffset | ToFromSIMPL| Digital  | One-hot input select and feedback array. 11–17 map to inputs 1–7 (see [Input codes](#input-codes)). Feedback follows the sender's actual input from the status poll. Honors `friendlyNames.hideInput`. |
 | 50     | IsOnline          | ToSIMPL    | Digital  | High when the device is considered online by the communication monitor.                                                                         |
 
 ### Analog joins
@@ -202,7 +235,7 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6BridgeJoinMap` class. Th
 |--------|-------------|------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------|
 | 33     | Brightness  | ToFromSIMPL| Analog  | Brightness level, 0–65535, sent at full resolution as a float 0–1.0. Feedback: the sender's actual brightness from the status poll. |
 | 21     | Preset      | FromSIMPL  | Analog  | Preset recall. SIMPL uses 1-based indexing; the EPI subtracts 1 and sends a 0-based preset index.                                            |
-| 11     | InputSelect | ToFromSIMPL| Analog  | Input select command and fake feedback. 1–7 map to HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2. Resets to 0 when the device goes offline.    |
+| 11     | InputSelect | ToFromSIMPL| Analog  | Input select command and feedback, 1–7 (see [Input codes](#input-codes)). Feedback follows the sender's actual input from the status poll; 0 when the input matches no input number or the connection drops. |
 
 ### Serial joins
 

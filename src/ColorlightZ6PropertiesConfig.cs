@@ -60,6 +60,13 @@ namespace PepperDash.Essentials.Plugins
         public int? InputSelect { get; set; }
 
         /// <summary>
+        /// Optional protocol input code (decimal, 0-255) the sender uses for this input number.
+        /// Overrides the built-in default, which follows the Z6 (e.g. 16 = 0x10 HDMI, 80 = 0x50 DVI).
+        /// </summary>
+        [JsonProperty("inputCode")]
+        public byte? InputCode { get; set; }
+
+        /// <summary>
         /// Optional brightness level (0-65535) to apply when this button is pressed.
         /// </summary>
         [JsonProperty("brightness")]

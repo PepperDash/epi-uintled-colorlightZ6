@@ -19,6 +19,9 @@ namespace PepperDash.Essentials.Plugins
 		// matches the Essentials default AutoReconnectIntervalMs
 		private const int ReconnectThrottleMs = 5000;
 		private DateTime _lastConnectAttempt = DateTime.MinValue;
+		// Default input codes for inputs 1-7 (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2), per the Z6.
+		// Override per input with friendlyNames[].inputCode for other models.
+		private static readonly byte[] DefaultInputCodes = { 0x10, 0x50, 0x02, 0x03, 0x04, 0x20, 0x21 };
 		private const long DefaultPollTimeMs = 30000;
 		private const long DefaultWarningTimeMs = 120000;
 		private const long DefaultErrorTimeMs = 300000;
@@ -148,7 +151,7 @@ namespace PepperDash.Essentials.Plugins
 		/// <summary>
 		/// Updates feedback from a Response Frame for Detecting Sender Parameters (0xF1 ... 0x16 0x01).
 		/// Offsets per the Class A protocol: 12 model, 15 flags DWORD 0 (bit0 = 1 when blackout is off),
-		/// 23 brightness as a little-endian float 0-1.0.
+		/// 23 brightness as a little-endian float 0-1.0, 192 input code of layer 0.
 		/// </summary>
 		private void ApplyStatusReply(byte[] frame)
 		{
@@ -171,14 +174,19 @@ namespace PepperDash.Essentials.Plugins
 			}
 
 			var level = BitConverter.ToSingle(frame, 23);
-			if (float.IsNaN(level))
-				return;
-
-			var brightness = (ushort)Math.Round(Math.Clamp(level, 0f, 1f) * 65535);
-			if (brightness != _brightness)
+			if (!float.IsNaN(level))
 			{
-				_brightness = brightness;
-				BrightnessFeedback.FireUpdate();
+				var brightness = (ushort)Math.Round(Math.Clamp(level, 0f, 1f) * 65535);
+				if (brightness != _brightness)
+				{
+					_brightness = brightness;
+					BrightnessFeedback.FireUpdate();
+				}
+			}
+
+			if (frame.Length > 192)
+			{
+				InputNumber = GetInputNumber(frame[192]);
 			}
 		}
 
@@ -466,14 +474,7 @@ namespace PepperDash.Essentials.Plugins
 
 		private void SelectInput(ushort input)
 		{
-			// Map Crestron analog (1-7) to device-specific input codes
-			// 1: HDMI   -> 0x10
-			// 2: DVI    -> 0x01
-			// 3: DVI-2  -> 0x02
-			// 4: DVI-3  -> 0x03
-			// 5: DVI-4  -> 0x04
-			// 6: SDI    -> 0x20
-			// 7: SDI-2  -> 0x21
+			// Map Crestron analog (1-7) to the sender's input code (see GetInputCode)
 			if (input < 1 || input > 7)
 			{
 				InputNumber = 0;
@@ -482,39 +483,38 @@ namespace PepperDash.Essentials.Plugins
 
 			InputNumber = input;
 
-			byte inputCode;
-			switch (input)
-			{
-				case 1:
-					inputCode = 0x10;
-					break;
-				case 2:
-					inputCode = 0x01;
-					break;
-				case 3:
-					inputCode = 0x02;
-					break;
-				case 4:
-					inputCode = 0x03;
-					break;
-				case 5:
-					inputCode = 0x04;
-					break;
-				case 6:
-					inputCode = 0x20;
-					break;
-				case 7:
-					inputCode = 0x21;
-					break;
-				default:
-					inputCode = 0x00;
-					break;
-			}
+			var inputCode = GetInputCode(input);
 
 			// Setting Input Video Source (0x33): layer 0 (main), then the input code.
 			// The switch only takes effect after a Batch Operation (0x6f) frame.
 			SendBytes(BuildFrame(0x33, 0x00, inputCode));
 			SendBytes(BuildFrame(0x6F));
+		}
+
+		/// <summary>
+		/// Protocol input code for input 1-7: friendlyNames[].inputCode if set, otherwise the Z6 default.
+		/// </summary>
+		private byte GetInputCode(int input)
+		{
+			var friendly = GetFriendlyConfigForButton(input);
+			if (friendly != null && friendly.InputCode.HasValue)
+				return friendly.InputCode.Value;
+
+			return DefaultInputCodes[input - 1];
+		}
+
+		/// <summary>
+		/// Input number 1-7 whose code matches, or 0 if none does.
+		/// </summary>
+		private int GetInputNumber(byte inputCode)
+		{
+			for (var input = 1; input <= DefaultInputCodes.Length; input++)
+			{
+				if (GetInputCode(input) == inputCode)
+					return input;
+			}
+
+			return 0;
 		}
 
 		/// <summary>
