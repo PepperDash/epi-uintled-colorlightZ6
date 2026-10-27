@@ -9,9 +9,9 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 
-namespace PepperDash.Essentials.Plugins.Colorlight.Z6
+namespace PepperDash.Essentials.Plugins
 {
-	public class ColorlightZ6Controller : EssentialsBridgeableDevice, ICommunicationMonitor, IDisposable
+	public class ColorlightZ6Device : EssentialsBridgeableDevice, ICommunicationMonitor, IDisposable
 	{
 		private Thread _queueProcess;
 		private readonly CrestronQueue<byte[]> _myQueue = new CrestronQueue<byte[]>(100);
@@ -26,15 +26,15 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		private bool _powerIsOn;
 		private bool _powerIsOff;
 		private BasicTriList _trilist;
-		private ColorlightZ6JoinMap _joinMap;
+		private ColorlightZ6BridgeJoinMap _joinMap;
         private readonly object _inputFeedbackLock = new object();
-		private readonly ColorlightZ6Properties _config;
+		private readonly ColorlightZ6PropertiesConfig _config;
 
 		public IBasicCommunication Communications { get; private set; }
 		public StatusMonitorBase CommunicationMonitor { get; private set; }
 
 
-		public ColorlightZ6Controller(string key, string name, IBasicCommunication comm, ColorlightZ6Properties config)
+		public ColorlightZ6Device(string key, string name, IBasicCommunication comm, ColorlightZ6PropertiesConfig config)
 			: base(key, name)
 		{
 			_config = config;
@@ -56,15 +56,15 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 			_id = config.Id;
 
-			this.LogInformation($"Creating Colorlight Z6 controller with id: {_id}");
+			this.LogInformation("Creating Colorlight Z6 controller with id: {Id}", _id);
 
 			_inputFeedback = new List<bool>();
 			InputFeedback = new List<BoolFeedback>();
 		}
 
-		public override void Initialize()
+		protected override void Initialize()
 		{
-			this.LogInformation($"Initialize: Colorlight Z6 with id: {_id}");
+			this.LogInformation("Initialize: Colorlight Z6 with id: {Id}", _id);
 			
 			Communications.Connect();
 			CommunicationMonitor.Start();
@@ -104,7 +104,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 		private void CommunicationsOnBytesReceived(object sender, GenericCommMethodReceiveBytesArgs genericCommMethodReceiveBytesArgs)
 		{
-			this.LogVerbose($"CommunicationsOnBytesReceived: {BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes)}");
+			this.LogVerbose("CommunicationsOnBytesReceived: {Bytes}", BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes));
 
 			_myQueue.Enqueue(genericCommMethodReceiveBytesArgs.Bytes);
 
@@ -139,7 +139,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			{
 				var myResponse = _myQueue.Dequeue();
 
-				this.LogVerbose($"ProcessQueue: {myResponse}");
+				this.LogVerbose("ProcessQueue: {Response}", myResponse);
 			}
 			return null;
 		}	
@@ -200,7 +200,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 					}
 					else
 					{
-						this.LogWarning($"ExecuteButtonAction: inputSelect {routeInput} out of range (1-7) for button {buttonIndex}");
+						this.LogWarning("ExecuteButtonAction: inputSelect {RouteInput} out of range (1-7) for button {ButtonIndex}", routeInput, buttonIndex);
 					}
 				}
 
@@ -221,7 +221,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 					}
 					else
 					{
-						this.LogWarning($"ExecuteButtonAction: preset value {friendly.Preset.Value} is out of range (>0) for button {buttonIndex}");
+						this.LogWarning("ExecuteButtonAction: preset value {Preset} is out of range (>0) for button {ButtonIndex}", friendly.Preset.Value, buttonIndex);
 					}
 				}
 			}
@@ -275,9 +275,9 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 		
 		public override void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge)
 		{
-			this.LogInformation($"Connecting to SIMPL Bridge with joinStart {joinStart}");
+			this.LogInformation("Connecting to SIMPL Bridge with joinStart {JoinStart}", joinStart);
 
-			var joinMap = new ColorlightZ6JoinMap(joinStart);
+			var joinMap = new ColorlightZ6BridgeJoinMap(joinStart);
 			_trilist = trilist;
 			_joinMap = joinMap;
 
@@ -293,8 +293,8 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 				joinMap.SetCustomJoinData(customJoins);
 			}
 
-			this.LogWarning($"Linking to Trilist '{trilist.ID.ToString("X")}'");
-			this.LogInformation($"Linking to Bridge Type {GetType().Name}");
+			this.LogWarning("Linking to Trilist {TrilistId:X}", trilist.ID);
+			this.LogInformation("Linking to Bridge Type {BridgeType}", GetType().Name);
 
 			trilist.SetString(joinMap.DeviceName.JoinNumber, Name);
 
@@ -452,7 +452,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 				Communications.Connect();
 			}
 
-			this.LogVerbose($"SendBytes: {BitConverter.ToString(command)}");
+			this.LogVerbose("SendBytes: {Command}", BitConverter.ToString(command));
 			Communications.SendBytes(command);
 		}
 
@@ -471,7 +471,7 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 			//  65535 -> 1.00f, 49149 -> 0.75f, 32767 -> 0.50f, 16383 -> 0.25f
 			var brightnessPercent = (float)Math.Round(brightness / 65535.0f, 2);
 
-			this.LogVerbose($"SetBrightness: Level {brightness} Percent {brightnessPercent * 100}");
+			this.LogVerbose("SetBrightness: Level {Level} Percent {Percent}", brightness, brightnessPercent * 100);
 
 			var brightnessBytes = BitConverter.GetBytes(brightnessPercent);
 

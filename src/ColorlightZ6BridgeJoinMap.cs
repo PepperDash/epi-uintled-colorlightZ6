@@ -1,8 +1,8 @@
 ﻿using PepperDash.Essentials.Core;
 
-namespace PepperDash.Essentials.Plugins.Colorlight.Z6
+namespace PepperDash.Essentials.Plugins
 {
-    public class ColorlightZ6JoinMap : JoinMapBaseAdvanced
+    public class ColorlightZ6BridgeJoinMap : JoinMapBaseAdvanced
 	{
         #region Digital Joins
 
@@ -193,8 +193,8 @@ namespace PepperDash.Essentials.Plugins.Colorlight.Z6
 
 		#endregion
 
-		public ColorlightZ6JoinMap(uint joinStart) 
-			: base(joinStart, typeof (ColorlightZ6JoinMap))
+		public ColorlightZ6BridgeJoinMap(uint joinStart) 
+			: base(joinStart, typeof (ColorlightZ6BridgeJoinMap))
         {
         }
 
