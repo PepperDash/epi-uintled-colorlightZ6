@@ -43,6 +43,10 @@ The table below shows what the **Class A protocol** supports on each model, acco
 - The plugin DLL is now `PepperDash.Essentials.Plugins.Uintled.ColorlightZ6.dll`. When upgrading, delete older builds of this plugin from the processor's `plugins` folder (`PepperDash.Essentials.Plugin.Colorlight.Z6.dll` or `epi-colorlight-z6.4Series.dll`) so the device types are not registered twice.
 - **Check `properties.id` when upgrading.** The sender id is now sent in the byte order the protocol requires. Use **`0` for a single sender** or **`65535` for all senders** (for example, several cascaded senders that form one display); neither value is affected by this change. Any other value now addresses a different sender than before. See [Device ID](#device-id-propertiesid).
 
+## Testing without hardware
+
+[tools/emulator](tools/emulator/README.md) has a small Python sender emulator (Z6 over TCP, S6/S6F over UDP) for bench-testing the plugin.
+
 ## License
 
 Provided under MIT license
