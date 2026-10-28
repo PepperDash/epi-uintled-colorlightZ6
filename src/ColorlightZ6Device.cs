@@ -34,8 +34,6 @@ namespace PepperDash.Essentials.Plugins
 		private ushort _brightness;
 		private string _model = string.Empty;
 		private byte? _modelCode;
-		public List<BoolFeedback> InputFeedback;
-		private List<bool> _inputFeedback;
 		private int _inputNumber;
 		private bool _powerIsOn;
 		private bool _powerIsOff;
@@ -80,9 +78,6 @@ namespace PepperDash.Essentials.Plugins
 			ModelFeedback = new StringFeedback(Key + "-ModelFeedback", () => _model);
 
 			this.LogInformation("Creating Colorlight Z6 controller with id: {Id}", _id);
-
-			_inputFeedback = new List<bool>();
-			InputFeedback = new List<BoolFeedback>();
 		}
 
 		protected override void Initialize()
@@ -342,9 +337,6 @@ namespace PepperDash.Essentials.Plugins
 
 				lock (_inputFeedbackLock)
 				{
-					// Clear existing state
-					_inputFeedback.Clear();
-
 					// We support up to 7 inputs on digital joins 11-17
 					const int maxInputs = 7;
 
@@ -353,16 +345,9 @@ namespace PepperDash.Essentials.Plugins
 						var inputNumber = i + 1;
 						var isVisible = !IsInputHidden(inputNumber);
 						var isActive = isVisible && (data - 1) == i && data >= 1 && data <= maxInputs;
-						_inputFeedback.Add(isActive);
 
 						var join = (uint)(_joinMap.InputSelectOffset.JoinNumber + i);
 						_trilist.BooleanInput[join].BoolValue = isActive;
-					}
-
-					// Fire any external BoolFeedbacks that depend on this list
-					foreach (var item in InputFeedback)
-					{
-						item.FireUpdate();
 					}
 				}
 			}
