@@ -259,3 +259,109 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6BridgeJoinMap` class. Th
 | 11     | InputNamesOffset | ToSimpl   | Input names (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2, ...), starting at this offset.       |
 
 
+<!-- START Minimum Essentials Framework Versions -->
+### Minimum Essentials Framework Versions
+
+- 3.0.0
+<!-- END Minimum Essentials Framework Versions -->
+<!-- START Config Example -->
+### Config Example
+
+```json
+{
+    "key": "GeneratedKey",
+    "uid": 1,
+    "name": "GeneratedName",
+    "type": "ColorlightZ6Properties",
+    "group": "Group",
+    "properties": {
+        "control": "SampleValue",
+        "id": "SampleValue",
+        "communicationMonitorProperties": "SampleValue",
+        "powerOnBrightness": 0,
+        "friendlyNames": [
+            {
+                "inputNumber": 0,
+                "name": "SampleString",
+                "hideInput": true,
+                "inputSelect": 0,
+                "inputCode": "SampleValue",
+                "brightness": "SampleValue",
+                "preset": "SampleValue"
+            }
+        ]
+    }
+}
+```
+<!-- END Config Example -->
+<!-- START Supported Types -->
+
+<!-- END Supported Types -->
+<!-- START Join Maps -->
+### Join Maps
+
+#### Digitals
+
+| Join | Type (RW) | Description |
+| --- | --- | --- |
+| 1 | R | Power Off / Power Is Off |
+| 2 | R | Power On / Power Is On |
+| 11 | R | Input Select |
+| 50 | R | Is Online |
+
+#### Analogs
+
+| Join | Type (RW) | Description |
+| --- | --- | --- |
+| 11 | R | Input Select (command and feedback) |
+| 33 | R | Brightness level (command and feedback), 0-65535 |
+| 21 | R | Preset Recall |
+
+#### Serials
+
+| Join | Type (RW) | Description |
+| --- | --- | --- |
+| 1 | R | Device Name |
+| 2 | R | Sender model reported by the status poll (e.g. Z6, S6F) |
+| 11 | R | Input Names Offset |
+<!-- END Join Maps -->
+<!-- START Interfaces Implemented -->
+### Interfaces Implemented
+
+- ICommunicationMonitor
+- IDisposable
+<!-- END Interfaces Implemented -->
+<!-- START Base Classes -->
+### Base Classes
+
+- StatusMonitorBase
+- EssentialsBridgeableDevice
+- JoinMapBaseAdvanced
+<!-- END Base Classes -->
+<!-- START Public Methods -->
+### Public Methods
+
+- public void StatusReplyReceived()
+- public void DataReceived()
+- public void Clear()
+- public void SendBytes(byte[] command)
+- public void SetBrightness(ushort brightness)
+- public void RecallPreset(ushort preset)
+- public void PowerOn()
+- public void PowerOff()
+- public void Dispose()
+<!-- END Public Methods -->
+<!-- START Bool Feedbacks -->
+
+<!-- END Bool Feedbacks -->
+<!-- START Int Feedbacks -->
+### Int Feedbacks
+
+- InputNumberFeedback
+- BrightnessFeedback
+<!-- END Int Feedbacks -->
+<!-- START String Feedbacks -->
+### String Feedbacks
+
+- ModelFeedback
+<!-- END String Feedbacks -->
