@@ -55,7 +55,7 @@ The PC's firewall must allow the port in.
 |---|---|---|
 | Normal | Same `id` in config and emulator | Online; Model join shows "Z6"; brightness, power and input feedback follow commands |
 | Wrong id over TCP | Run with `--id 1`, config `id` 0 | Warning: "Connected but no status reply from sender 0. Check properties.id." |
-| No sender | Stop the emulator | Warning: "No reply from sender 0 …", then offline after 5 minutes |
+| No sender | Stop the emulator | Warning: "No reply from sender 0 …" and IsOnline low after 2 minutes; Error after 5 minutes |
 | Back again | Restart it | Information: "Sender 0 responding again." |
 | S6F | `--model s6f`, UDP config | Online over UDP; preset recall logs a Warning in the plugin and nothing is sent |
 | Power-on brightness | Set `powerOnBrightness`, press PowerOn | Emulator logs blackout off, then the brightness |

@@ -70,6 +70,16 @@ namespace PepperDash.Essentials.Plugins
 			var warningTime = monitorConfig != null && monitorConfig.TimeToWarning > 0 ? monitorConfig.TimeToWarning : DefaultWarningTimeMs;
 			var errorTime = monitorConfig != null && monitorConfig.TimeToError > 0 ? monitorConfig.TimeToError : DefaultErrorTimeMs;
 
+			// The monitor throws on these, which would stop the device loading; use the defaults instead
+			if (pollTime >= warningTime || warningTime > errorTime || warningTime < 5000 || errorTime < 5000)
+			{
+				this.LogWarning("communicationMonitorProperties invalid ({Poll}/{Warning}/{Error} ms), using defaults {DefaultPoll}/{DefaultWarning}/{DefaultError}",
+					pollTime, warningTime, errorTime, DefaultPollTimeMs, DefaultWarningTimeMs, DefaultErrorTimeMs);
+				pollTime = DefaultPollTimeMs;
+				warningTime = DefaultWarningTimeMs;
+				errorTime = DefaultErrorTimeMs;
+			}
+
 			_statusMonitor = new ColorlightStatusMonitor(this, pollTime, warningTime, errorTime, StatusSenderId, PollStatus);
 			CommunicationMonitor = _statusMonitor;
 			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
@@ -93,7 +103,9 @@ namespace PepperDash.Essentials.Plugins
 		protected override void Initialize()
 		{
 			this.LogInformation("Initialize: Colorlight Z6 with id: {Id}", _id);
-			
+
+			// Count this attempt toward the reconnect throttle so early sends don't connect again while it's pending
+			_lastConnectAttempt = DateTime.UtcNow;
 			Communications.Connect();
 			CommunicationMonitor.Start();
 
@@ -226,8 +238,9 @@ namespace PepperDash.Essentials.Plugins
 		{
 			if (genericSocketStatusChageEventArgs.Client.IsConnected)
 			{
-				// For socket-based transports, maintain existing behavior on connect
-				// (no-op for heartbeat, which now runs continuously once started).
+				// Polls sent before the socket connected were lost; refresh feedback now rather
+				// than waiting a full poll interval
+				PollStatus();
 				return;
 			}
 

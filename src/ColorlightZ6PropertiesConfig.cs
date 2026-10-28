@@ -15,7 +15,7 @@ namespace PepperDash.Essentials.Plugins
 
         /// <summary>
         /// Optional override of the status poll timing: pollInterval, timeToWarning and timeToError in ms.
-        /// Defaults are 30 s, 2 min and 5 min.
+        /// Defaults are 30 s, 2 min and 5 min. IsOnline goes low at timeToWarning.
         /// </summary>
         [JsonProperty("communicationMonitorProperties")]
         public CommunicationMonitorConfig CommunicationMonitorProperties { get; set; }

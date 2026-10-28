@@ -94,14 +94,14 @@ Common cases:
 
 The plugin polls the sender for its status (Class A "Detecting Sender Parameters") and reports the device online only while valid replies come back. The poll goes to `properties.id`, or to sender `0` when `id` is `65535` (a broadcast query would get replies from every sender at once).
 
-| Situation | Status | Logged once when it starts |
-|---|---|---|
-| Valid status replies | Online | — |
-| Data arriving (e.g. TCP heartbeats) but no status reply | Warning | "Connected but no status reply from sender {id}. Check properties.id." |
-| Nothing received | Warning, then offline | "No reply from sender {id}. Check network/IP and properties.id." |
-| Replies resume | Online | "Sender {id} responding again." |
+| Situation | Status | IsOnline (join 50) | Logged once when it starts |
+|---|---|---|---|
+| Valid status replies | OK | High | — |
+| Data arriving (e.g. TCP heartbeats) but no status reply | Warning | Low | "Connected but no status reply from sender {id}. Check properties.id." |
+| Nothing received | Warning, then Error | Low | "No reply from sender {id}. Check network/IP and properties.id." |
+| Replies resume | OK | High | "Sender {id} responding again." |
 
-Default timing is a poll every 30 s, Warning after 2 minutes without a reply, and offline after 5 minutes. To change it, add the standard Essentials block to `properties` (values in ms):
+Default timing is a poll every 30 s, Warning after 2 minutes without a reply, and Error after 5 minutes. As in other Essentials plugins, IsOnline goes low at Warning; Error only changes the status. To change it, add the standard Essentials block to `properties` (values in ms):
 
 ```jsonc
 "communicationMonitorProperties": {
@@ -111,7 +111,7 @@ Default timing is a poll every 30 s, Warning after 2 minutes without a reply, an
 }
 ```
 
-`pollInterval` must be less than `timeToWarning`, which must not be more than `timeToError`; both times must be at least 5000.
+A key left out of the block uses the Essentials default (30000, 120000 or 300000), not a value derived from the others. `pollInterval` must be less than `timeToWarning`, which must not be more than `timeToError`; both times must be at least 5000. If they aren't, the plugin logs a Warning at startup and uses the defaults for all three.
 
 Over TCP the plugin also sends the protocol's 1-second heartbeat to keep the connection open. It is not sent over UDP or serial, where the protocol doesn't use it.
 
