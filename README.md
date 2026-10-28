@@ -111,6 +111,14 @@ Default timing is a poll every 30 s, Warning after 2 minutes without a reply, an
 
 Over TCP the plugin also sends the protocol's 1-second heartbeat to keep the connection open. It is not sent over UDP or serial, where the protocol doesn't use it.
 
+### Power-on brightness (`properties.powerOnBrightness`)
+
+PowerOn only turns blackout off, so the screen comes back at whatever brightness it had. To set a brightness every time PowerOn is pressed, add `powerOnBrightness` in percent (0–100, decimals allowed). Values outside 0–100 are clamped, and a Warning is logged at startup. If it isn't set, PowerOn leaves brightness unchanged.
+
+```jsonc
+"powerOnBrightness": 75
+```
+
 ### Input codes
 
 Each input number (buttons 11–17, analog 11) is sent to the sender as a protocol input code. The defaults follow the Z6:
@@ -159,6 +167,7 @@ Input feedback comes from the sender's current input in the status poll, matched
 					// standard Essentials TCP/UDP control config here
 				},
 				"id": 0,       // first (or only) sender; sends 0x00 0x00 as the ID bytes
+				"powerOnBrightness": 75,   // optional: percent to set on PowerOn
 				"friendlyNames": [
 					{
 						"inputNumber": 1,       // button 11

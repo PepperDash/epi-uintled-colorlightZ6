@@ -21,6 +21,13 @@ namespace PepperDash.Essentials.Plugins
         public CommunicationMonitorConfig CommunicationMonitorProperties { get; set; }
 
         /// <summary>
+        /// Optional brightness in percent (0-100, decimals allowed) to set after PowerOn turns blackout off.
+        /// Values outside 0-100 are clamped, with a Warning at startup. If null, PowerOn leaves brightness unchanged.
+        /// </summary>
+        [JsonProperty("powerOnBrightness")]
+        public double? PowerOnBrightness { get; set; }
+
+        /// <summary>
         /// Optional per-input configuration for friendly names and visibility.
         /// </summary>
         [JsonProperty("friendlyNames")]

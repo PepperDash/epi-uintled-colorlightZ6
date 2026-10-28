@@ -34,6 +34,7 @@ namespace PepperDash.Essentials.Plugins
 		private ushort _brightness;
 		private string _model = string.Empty;
 		private byte? _modelCode;
+		private readonly ushort? _powerOnBrightness;
 		private int _inputNumber;
 		private bool _powerIsOn;
 		private bool _powerIsOff;
@@ -78,6 +79,15 @@ namespace PepperDash.Essentials.Plugins
 			ModelFeedback = new StringFeedback(Key + "-ModelFeedback", () => _model);
 
 			this.LogInformation("Creating Colorlight Z6 controller with id: {Id}", _id);
+
+			if (config.PowerOnBrightness.HasValue)
+			{
+				var percent = Math.Clamp(config.PowerOnBrightness.Value, 0d, 100d);
+				if (percent != config.PowerOnBrightness.Value)
+					this.LogWarning("powerOnBrightness {Value} is out of range (0-100), clamped to {Clamped}", config.PowerOnBrightness.Value, percent);
+
+				_powerOnBrightness = (ushort)Math.Round(percent / 100d * 65535);
+			}
 		}
 
 		protected override void Initialize()
@@ -624,6 +634,9 @@ namespace PepperDash.Essentials.Plugins
 
 			// Blackout (0x11): 0x01 disables blackout (show on)
 			SendBytes(BuildFrame(0x11, 0x01));
+
+			if (_powerOnBrightness.HasValue)
+				SetBrightness(_powerOnBrightness.Value);
 		}
 
 		/// <summary>
