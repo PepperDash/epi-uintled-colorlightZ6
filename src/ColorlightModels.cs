@@ -44,10 +44,18 @@ namespace PepperDash.Essentials.Plugins
             { 0x45, "X8E" }
         };
 
+        // Models the protocol lists without Preset Selection (0x74)
+        private static readonly HashSet<byte> NoPresets = new HashSet<byte> { 0x15, 0x16, 0x2D, 0x3D };
+
         public static string GetName(byte code)
         {
             string name;
             return Names.TryGetValue(code, out name) ? name : string.Format("Unknown (0x{0:X2})", code);
+        }
+
+        public static bool SupportsPresets(byte code)
+        {
+            return !NoPresets.Contains(code);
         }
     }
 }

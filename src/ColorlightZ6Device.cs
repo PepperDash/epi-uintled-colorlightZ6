@@ -33,6 +33,7 @@ namespace PepperDash.Essentials.Plugins
 		public StringFeedback ModelFeedback;
 		private ushort _brightness;
 		private string _model = string.Empty;
+		private byte? _modelCode;
 		public List<BoolFeedback> InputFeedback;
 		private List<bool> _inputFeedback;
 		private int _inputNumber;
@@ -157,6 +158,8 @@ namespace PepperDash.Essentials.Plugins
 		{
 			if (frame.Length < 27)
 				return;
+
+			_modelCode = frame[12];
 
 			var model = ColorlightModels.GetName(frame[12]);
 			if (model != _model)
@@ -611,6 +614,13 @@ namespace PepperDash.Essentials.Plugins
 			if (preset > 16)
 			{
 				this.LogWarning("RecallPreset: preset {Preset} is out of range (1-16), ignored", preset);
+				return;
+			}
+
+			// Model is unknown until the first status reply; send anyway rather than block presets
+			if (_modelCode.HasValue && !ColorlightModels.SupportsPresets(_modelCode.Value))
+			{
+				this.LogWarning("RecallPreset: {Model} does not support presets, ignored", _model);
 				return;
 			}
 
