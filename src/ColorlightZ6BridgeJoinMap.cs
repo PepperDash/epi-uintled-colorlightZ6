@@ -138,8 +138,8 @@ namespace PepperDash.Essentials.Plugins
 				},
                 new JoinMetadata
                 {
-                    Description = "Brightness control",
-                    JoinCapabilities = eJoinCapabilities.FromSIMPL,
+                    Description = "Brightness level (command and feedback), 0-65535",
+                    JoinCapabilities = eJoinCapabilities.ToFromSIMPL,
                     JoinType = eJoinType.Analog
                 });
 
@@ -173,6 +173,20 @@ namespace PepperDash.Essentials.Plugins
 			new JoinMetadata
 			{
 				Description = "Device Name",
+				JoinCapabilities = eJoinCapabilities.ToSIMPL,
+				JoinType = eJoinType.Serial
+			});
+
+		[JoinName("Model")]
+		public JoinDataComplete Model = new JoinDataComplete(
+			new JoinData
+			{
+				JoinNumber = 2,
+				JoinSpan = 1
+			},
+			new JoinMetadata
+			{
+				Description = "Sender model reported by the status poll (e.g. Z6, S6F)",
 				JoinCapabilities = eJoinCapabilities.ToSIMPL,
 				JoinType = eJoinType.Serial
 			});

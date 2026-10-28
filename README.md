@@ -16,7 +16,7 @@
 
 ### Model support (Class A protocol)
 
-The table below shows what the **Class A protocol** supports on each model, according to Colorlight's protocol document. It is not a list of models this plugin has been tested with. So far the plugin has only been implemented and tested against the **Z6 over TCP**. Other models may need changes to the plugin's behavior before they work fully: for example, the S6/S6F is controlled over UDP and does not answer the heartbeat, so online status monitoring will not work on it yet, and its input numbering differs from the Z6's.
+The table below shows what the **Class A protocol** supports on each model, according to Colorlight's protocol document. It is not a list of models this plugin has been tested with. So far the plugin has only been implemented and tested against the **Z6 over TCP**. Other models may need changes to the plugin's behavior before they work fully: for example, the S6/S6F is controlled over UDP, has no preset recall, and numbers its inputs differently from the Z6.
 
 | Model | TCP 9999 | UDP 9099 | Serial | Brightness | Show On/Off (blackout) | Preset recall |
 |-------|:--------:|:--------:|:------:|:----------:|:----------------------:|:-------------:|
@@ -41,6 +41,11 @@ The table below shows what the **Class A protocol** supports on each model, acco
 
 - PepperDash Essentials **3.0.0** or later, on a Crestron **4-Series** processor. 3-Series is no longer supported.
 - The plugin DLL is now `PepperDash.Essentials.Plugins.Uintled.ColorlightZ6.dll`. When upgrading, delete older builds of this plugin from the processor's `plugins` folder (`PepperDash.Essentials.Plugin.Colorlight.Z6.dll` or `epi-colorlight-z6.4Series.dll`) so the device types are not registered twice.
+- **Check `properties.id` when upgrading.** The sender id is now sent in the byte order the protocol requires. Use **`0` for a single sender** or **`65535` for all senders** (for example, several cascaded senders that form one display); neither value is affected by this change. Any other value now addresses a different sender than before. See [Device ID](#device-id-propertiesid).
+
+## Testing without hardware
+
+[tools/emulator](tools/emulator/README.md) has a small Python sender emulator (Z6 over TCP, S6/S6F over UDP) for bench-testing the plugin.
 
 ## License
 
@@ -60,27 +65,96 @@ Use the appropriate Essentials transport type (tcpIp, udp, com) in the `control`
 
 ### Device ID (`properties.id`)
 
-The ColorLight Z6 EPI uses an `id` value in the Essentials configuration to determine which device ID to embed in all commands.
+The plugin uses an `id` value in the Essentials configuration to select which sender each command is for. In the Class A protocol this is the sender's **index**: `0` is the first sender, `1` the second, and so on when senders are cascaded. `65535` (0xFFFF) broadcasts to all senders.
+
+**Use `0` for a single sender, or `65535` for all senders.** A command sent to `0` reaches only the first sender, so when several cascaded senders drive one display, use `65535` so they all change together.
 
 - Config path: `properties.id`
 - Type: unsigned 16-bit integer (0–65535), specified as a **decimal** value in JSON.
-- Wire format: the value is split into high/low bytes and sent as:
-	- High byte: `(byte)(id >> 8)`
-	- Low byte: `(byte)(id & 0xFF)`
+- Wire format: little-endian, as the protocol requires (low byte first, then high byte).
 
 Common cases:
 
+- `id = 0`
+	- Wire bytes: `0x00 0x00`
+	- The first (or only) sender. Use this for a single sender.
+
 - `id = 1`
-	- Wire bytes: `0x00 0x01`
-	- Example usage: target a specific device with ID 1.
+	- Wire bytes: `0x01 0x00`
+	- The second sender in a cascade.
 
 - `id = 65535`
 	- Wire bytes: `0xFF 0xFF`
-	- Example usage: broadcast / "unknown ID" mode as allowed by the manufacturer.
-		This is how to send `\xFF\xFF` on the wire from config.
+	- Broadcast to all senders.
 
 > Note: JSON does **not** support hex literals like `0xFFFF`; always enter the decimal
 > equivalent (`65535`) in the Essentials configuration.
+
+### Online status
+
+The plugin polls the sender for its status (Class A "Detecting Sender Parameters") and reports the device online only while valid replies come back. The poll goes to `properties.id`, or to sender `0` when `id` is `65535` (a broadcast query would get replies from every sender at once).
+
+| Situation | Status | IsOnline (join 50) | Logged once when it starts |
+|---|---|---|---|
+| Valid status replies | OK | High | — |
+| Data arriving (e.g. TCP heartbeats) but no status reply | Warning | Low | "Connected but no status reply from sender {id}. Check properties.id." |
+| Nothing received | Warning, then Error | Low | "No reply from sender {id}. Check network/IP and properties.id." |
+| Replies resume | OK | High | "Sender {id} responding again." |
+
+Default timing is a poll every 30 s, Warning after 2 minutes without a reply, and Error after 5 minutes. As in other Essentials plugins, IsOnline goes low at Warning; Error only changes the status. To change it, add the standard Essentials block to `properties` (values in ms):
+
+```jsonc
+"communicationMonitorProperties": {
+	"pollInterval": 30000,
+	"timeToWarning": 120000,
+	"timeToError": 300000
+}
+```
+
+A key left out of the block uses the Essentials default (30000, 120000 or 300000), not a value derived from the others. `pollInterval` must be less than `timeToWarning`, which must not be more than `timeToError`; both times must be at least 5000. If they aren't, the plugin logs a Warning at startup and uses the defaults for all three.
+
+Over TCP the plugin also sends the protocol's 1-second heartbeat to keep the connection open. It is not sent over UDP or serial, where the protocol doesn't use it.
+
+### Power-on brightness (`properties.powerOnBrightness`)
+
+PowerOn only turns blackout off, so the screen comes back at whatever brightness it had. To set a brightness every time PowerOn is pressed, add `powerOnBrightness` in percent (0–100, decimals allowed). Values outside 0–100 are clamped, and a Warning is logged at startup. If it isn't set, PowerOn leaves brightness unchanged.
+
+```jsonc
+"powerOnBrightness": 75
+```
+
+### Input codes
+
+Each input number (buttons 11–17, analog 11) is sent to the sender as a protocol input code. The defaults follow the Z6:
+
+| Input | Button | Default name | Default code |
+|---|---|---|---|
+| 1 | 11 | HDMI | 16 (0x10) |
+| 2 | 12 | DVI | 80 (0x50) |
+| 3 | 13 | DVI-2 | 2 (0x02) |
+| 4 | 14 | DVI-3 | 3 (0x03) |
+| 5 | 15 | DVI-4 | 4 (0x04) |
+| 6 | 16 | SDI | 32 (0x20) |
+| 7 | 17 | SDI-2 | 33 (0x21) |
+
+For other models, set `inputCode` (decimal) on that input's `friendlyNames` entry. Codes from the Class A protocol for models other than the Z6:
+
+| Inputs | Codes |
+|---|---|
+| HDMI1–HDMI7 | 16–23 (0x10–0x17) |
+| DP1–DP7 | 48–55 (0x30–0x37) |
+| DVI1–DVI12 | 1–12 (0x01–0x0C) |
+| DVI13–DVI16 | 144–147 (0x90–0x93) |
+| SDI1–SDI16 | 32–47 (0x20–0x2F) |
+| VGA, AV1, AV2 | 64, 65, 66 (0x40–0x42) |
+
+```jsonc
+"friendlyNames": [
+	{ "inputNumber": 2, "name": "DVI 1", "inputCode": 1 }   // DVI1 on a non-Z6 sender
+]
+```
+
+Input feedback comes from the sender's current input in the status poll, matched back to an input number through these codes. A code that matches no input number reports 0.
 
 ### Example Essentials configuration snippet
 
@@ -96,7 +170,8 @@ Common cases:
 				"control": {
 					// standard Essentials TCP/UDP control config here
 				},
-				"id": 1,       // sends 0x00 0x01 as the ID bytes
+				"id": 0,       // first (or only) sender; sends 0x00 0x00 as the ID bytes
+				"powerOnBrightness": 75,   // optional: percent to set on PowerOn
 				"friendlyNames": [
 					{
 						"inputNumber": 1,       // button 11
@@ -162,24 +237,25 @@ The SIMPL bridge mapping is defined by the `ColorlightZ6BridgeJoinMap` class. Th
 
 | Join # | Name              | Direction   | Type     | Description                                                                                                                                     |
 |--------|-------------------|------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1      | PowerOff          | ToFromSIMPL| Digital  | Command + fake feedback: off state. Clears when device goes offline.                                                                            |
-| 2      | PowerOn           | ToFromSIMPL| Digital  | Command + fake feedback: on state. Clears when device goes offline.                                                                             |
-| 11–17  | InputSelectOffset | ToFromSIMPL| Digital  | One-hot input select and feedback array. 11–17 map to inputs 1–7 (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2). Honors `friendlyNames.hideInput`. |
+| 1      | PowerOff          | ToFromSIMPL| Digital  | Command: blackout on. Feedback: high while the sender is in blackout (from the status poll; set immediately when pressed). Clears when the connection drops. |
+| 2      | PowerOn           | ToFromSIMPL| Digital  | Command: blackout off. Feedback: high while the sender is showing the image (from the status poll; set immediately when pressed). Clears when the connection drops. |
+| 11–17  | InputSelectOffset | ToFromSIMPL| Digital  | One-hot input select and feedback array. 11–17 map to inputs 1–7 (see [Input codes](#input-codes)). Feedback follows the sender's actual input from the status poll. Honors `friendlyNames.hideInput`. |
 | 50     | IsOnline          | ToSIMPL    | Digital  | High when the device is considered online by the communication monitor.                                                                         |
 
 ### Analog joins
 
 | Join # | Name        | Direction   | Type    | Description                                                                                                                                  |
 |--------|-------------|------------|---------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| 33     | Brightness  | FromSIMPL  | Analog  | Brightness level, 0–65535. The EPI maps this to a float 0.00–1.00 and sends it as a 4-byte IEEE 754 float.                                   |
+| 33     | Brightness  | ToFromSIMPL| Analog  | Brightness level, 0–65535, sent at full resolution as a float 0–1.0. Feedback: the sender's actual brightness from the status poll. |
 | 21     | Preset      | FromSIMPL  | Analog  | Preset recall. SIMPL uses 1-based indexing; the EPI subtracts 1 and sends a 0-based preset index.                                            |
-| 11     | InputSelect | ToFromSIMPL| Analog  | Input select command and fake feedback. 1–7 map to HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2. Resets to 0 when the device goes offline.    |
+| 11     | InputSelect | ToFromSIMPL| Analog  | Input select command and feedback, 1–7 (see [Input codes](#input-codes)). Feedback follows the sender's actual input from the status poll; 0 when the input matches no input number or the connection drops. |
 
 ### Serial joins
 
 | Join # | Name             | Direction | Description                                                                                   |
 |--------|------------------|-----------|-----------------------------------------------------------------------------------------------|
 | 1      | DeviceName       | ToSimpl   | Device name, taken from the Essentials device config (`name`) and pushed to SIMPL by the EPI. |
+| 2      | Model            | ToSimpl   | Sender model from the status poll (e.g. Z6, S6F). Blank until the first status reply. |
 | 11     | InputNamesOffset | ToSimpl   | Input names (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2, ...), starting at this offset.       |
 
 

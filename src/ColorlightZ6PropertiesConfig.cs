@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using PepperDash.Core;
+using PepperDash.Essentials.Core;
 using System.Collections.Generic;
 
 namespace PepperDash.Essentials.Plugins
@@ -11,6 +12,20 @@ namespace PepperDash.Essentials.Plugins
 
         [JsonProperty("id")]
         public ushort Id { get; set; }
+
+        /// <summary>
+        /// Optional override of the status poll timing: pollInterval, timeToWarning and timeToError in ms.
+        /// Defaults are 30 s, 2 min and 5 min. IsOnline goes low at timeToWarning.
+        /// </summary>
+        [JsonProperty("communicationMonitorProperties")]
+        public CommunicationMonitorConfig CommunicationMonitorProperties { get; set; }
+
+        /// <summary>
+        /// Optional brightness in percent (0-100, decimals allowed) to set after PowerOn turns blackout off.
+        /// Values outside 0-100 are clamped, with a Warning at startup. If null, PowerOn leaves brightness unchanged.
+        /// </summary>
+        [JsonProperty("powerOnBrightness")]
+        public double? PowerOnBrightness { get; set; }
 
         /// <summary>
         /// Optional per-input configuration for friendly names and visibility.
@@ -50,6 +65,13 @@ namespace PepperDash.Essentials.Plugins
         /// </summary>
         [JsonProperty("inputSelect")]
         public int? InputSelect { get; set; }
+
+        /// <summary>
+        /// Optional protocol input code (decimal, 0-255) the sender uses for this input number.
+        /// Overrides the built-in default, which follows the Z6 (e.g. 16 = 0x10 HDMI, 80 = 0x50 DVI).
+        /// </summary>
+        [JsonProperty("inputCode")]
+        public byte? InputCode { get; set; }
 
         /// <summary>
         /// Optional brightness level (0-65535) to apply when this button is pressed.

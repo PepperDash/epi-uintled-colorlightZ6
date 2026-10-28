@@ -1,5 +1,4 @@
 ﻿using Crestron.SimplSharp;
-using Crestron.SimplSharpPro.CrestronThread;
 using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
 using PepperDash.Core.Logging;
@@ -13,15 +12,29 @@ namespace PepperDash.Essentials.Plugins
 {
 	public class ColorlightZ6Device : EssentialsBridgeableDevice, ICommunicationMonitor, IDisposable
 	{
-		private Thread _queueProcess;
-		private readonly CrestronQueue<byte[]> _myQueue = new CrestronQueue<byte[]>(100);
 		private CTimer _heartbeatTimer;
 		// per manufacturer documentation, heartbeat must be sent every 1-second
 		private const long HeartbeatTime = 1000;
+		private static readonly byte[] HeartbeatFrame = { 0x99, 0x99, 0x04, 0x00 };
+		// matches the Essentials default AutoReconnectIntervalMs
+		private const int ReconnectThrottleMs = 5000;
+		private DateTime _lastConnectAttempt = DateTime.MinValue;
+		// Default input codes for inputs 1-7 (HDMI, DVI, DVI-2, DVI-3, DVI-4, SDI, SDI-2), per the Z6.
+		// Override per input with friendlyNames[].inputCode for other models.
+		private static readonly byte[] DefaultInputCodes = { 0x10, 0x50, 0x02, 0x03, 0x04, 0x20, 0x21 };
+		private const long DefaultPollTimeMs = 30000;
+		private const long DefaultWarningTimeMs = 120000;
+		private const long DefaultErrorTimeMs = 300000;
+		private readonly ColorlightFrameBuffer _frameBuffer = new ColorlightFrameBuffer();
+		private readonly ColorlightStatusMonitor _statusMonitor;
 		private readonly ushort _id;
 		public IntFeedback InputNumberFeedback;
-		public List<BoolFeedback> InputFeedback;
-		private List<bool> _inputFeedback;
+		public IntFeedback BrightnessFeedback;
+		public StringFeedback ModelFeedback;
+		private ushort _brightness;
+		private string _model = string.Empty;
+		private byte? _modelCode;
+		private readonly ushort? _powerOnBrightness;
 		private int _inputNumber;
 		private bool _powerIsOn;
 		private bool _powerIsOff;
@@ -48,31 +61,59 @@ namespace PepperDash.Essentials.Plugins
 			}
 
 			Communications.BytesReceived += CommunicationsOnBytesReceived;
-			// Heartbeat every 2 minutes, retry connection every 3 minutes, mark offline after 5 minutes without successful communication
-			CommunicationMonitor = new GenericCommunicationMonitor(this, Communications, 120000, 180000, 300000, SendHeartbeat);
-			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
-
-			InputNumberFeedback = new IntFeedback(Key + "-InputNumberFeedback", () => InputNumber);
 
 			_id = config.Id;
 
+			// Online status comes from replies to a status poll; timing can be overridden in config
+			var monitorConfig = config.CommunicationMonitorProperties;
+			var pollTime = monitorConfig != null && monitorConfig.PollInterval > 0 ? monitorConfig.PollInterval : DefaultPollTimeMs;
+			var warningTime = monitorConfig != null && monitorConfig.TimeToWarning > 0 ? monitorConfig.TimeToWarning : DefaultWarningTimeMs;
+			var errorTime = monitorConfig != null && monitorConfig.TimeToError > 0 ? monitorConfig.TimeToError : DefaultErrorTimeMs;
+
+			// The monitor throws on these, which would stop the device loading; use the defaults instead
+			if (pollTime >= warningTime || warningTime > errorTime || warningTime < 5000 || errorTime < 5000)
+			{
+				this.LogWarning("communicationMonitorProperties invalid ({Poll}/{Warning}/{Error} ms), using defaults {DefaultPoll}/{DefaultWarning}/{DefaultError}",
+					pollTime, warningTime, errorTime, DefaultPollTimeMs, DefaultWarningTimeMs, DefaultErrorTimeMs);
+				pollTime = DefaultPollTimeMs;
+				warningTime = DefaultWarningTimeMs;
+				errorTime = DefaultErrorTimeMs;
+			}
+
+			_statusMonitor = new ColorlightStatusMonitor(this, pollTime, warningTime, errorTime, StatusSenderId, PollStatus);
+			CommunicationMonitor = _statusMonitor;
+			CommunicationMonitor.StatusChange += CommunicationMonitor_StatusChage;
+
+			InputNumberFeedback = new IntFeedback(Key + "-InputNumberFeedback", () => InputNumber);
+			BrightnessFeedback = new IntFeedback(Key + "-BrightnessFeedback", () => _brightness);
+			ModelFeedback = new StringFeedback(Key + "-ModelFeedback", () => _model);
+
 			this.LogInformation("Creating Colorlight Z6 controller with id: {Id}", _id);
 
-			_inputFeedback = new List<bool>();
-			InputFeedback = new List<BoolFeedback>();
+			if (config.PowerOnBrightness.HasValue)
+			{
+				var percent = Math.Clamp(config.PowerOnBrightness.Value, 0d, 100d);
+				if (percent != config.PowerOnBrightness.Value)
+					this.LogWarning("powerOnBrightness {Value} is out of range (0-100), clamped to {Clamped}", config.PowerOnBrightness.Value, percent);
+
+				_powerOnBrightness = (ushort)Math.Round(percent / 100d * 65535);
+			}
 		}
 
 		protected override void Initialize()
 		{
 			this.LogInformation("Initialize: Colorlight Z6 with id: {Id}", _id);
-			
+
+			// Count this attempt toward the reconnect throttle so early sends don't connect again while it's pending
+			_lastConnectAttempt = DateTime.UtcNow;
 			Communications.Connect();
 			CommunicationMonitor.Start();
 
-			// Ensure heartbeat timer is running for all transport types (TCP, COM, UDP, SSH).
-			// Previously this was only started from the socket connection-change event,
-			// which meant non-socket transports (e.g. COM) never sent the required 1s heartbeat.
-			StartHeartbeatTimer();
+			// Per the protocol, the 1 s heartbeat is only needed (and only supported) over TCP
+			if (_config.Control != null && _config.Control.Method == eControlMethod.Tcpip)
+			{
+				StartHeartbeatTimer();
+			}
 
 			base.Initialize();
 		}	
@@ -104,26 +145,108 @@ namespace PepperDash.Essentials.Plugins
 
 		private void CommunicationsOnBytesReceived(object sender, GenericCommMethodReceiveBytesArgs genericCommMethodReceiveBytesArgs)
 		{
-			this.LogVerbose("CommunicationsOnBytesReceived: {Bytes}", BitConverter.ToString(genericCommMethodReceiveBytesArgs.Bytes));
+			var bytes = genericCommMethodReceiveBytesArgs.Bytes;
 
-			_myQueue.Enqueue(genericCommMethodReceiveBytesArgs.Bytes);
+			if (!IsHeartbeat(bytes))
+			{
+				this.LogVerbose("CommunicationsOnBytesReceived: {Bytes}", BitConverter.ToString(bytes));
+			}
 
-			if (_queueProcess == null || _queueProcess.ThreadState == Thread.eThreadStates.ThreadFinished) return;
+			foreach (var frame in _frameBuffer.Append(bytes))
+			{
+				if (frame.Type == ColorlightFrameType.StatusReply)
+				{
+					_statusMonitor.StatusReplyReceived();
+					ApplyStatusReply(frame.Bytes);
+				}
+				else
+				{
+					_statusMonitor.DataReceived();
+				}
+			}
+		}
 
-			_queueProcess = new Thread(ProcessQueue, null);
+		/// <summary>
+		/// Updates feedback from a Response Frame for Detecting Sender Parameters (0xF1 ... 0x16 0x01).
+		/// Offsets per the Class A protocol: 12 model, 15 flags DWORD 0 (bit0 = 1 when blackout is off),
+		/// 23 brightness as a little-endian float 0-1.0, 192 input code of layer 0.
+		/// </summary>
+		private void ApplyStatusReply(byte[] frame)
+		{
+			if (frame.Length < 27)
+				return;
+
+			_modelCode = frame[12];
+
+			var model = ColorlightModels.GetName(frame[12]);
+			if (model != _model)
+			{
+				_model = model;
+				ModelFeedback.FireUpdate();
+			}
+
+			var blackoutOff = (frame[15] & 0x01) == 0x01;
+			if (_powerIsOn != blackoutOff || _powerIsOff == blackoutOff)
+			{
+				_powerIsOn = blackoutOff;
+				_powerIsOff = !blackoutOff;
+				UpdatePowerFeedback();
+			}
+
+			var level = BitConverter.ToSingle(frame, 23);
+			if (!float.IsNaN(level))
+			{
+				var brightness = (ushort)Math.Round(Math.Clamp(level, 0f, 1f) * 65535);
+				if (brightness != _brightness)
+				{
+					_brightness = brightness;
+					BrightnessFeedback.FireUpdate();
+				}
+			}
+
+			if (frame.Length > 192)
+			{
+				InputNumber = GetInputNumber(frame[192]);
+			}
+		}
+
+		/// <summary>
+		/// Sender the status poll is addressed to. A broadcast (65535) query would get colliding
+		/// replies from every sender, so broadcast configs poll the first sender.
+		/// </summary>
+		private ushort StatusSenderId
+		{
+			get { return _id == 0xFFFF ? (ushort)0 : _id; }
+		}
+
+		/// <summary>
+		/// Detecting Sender Parameters (0x01 ... 0x16); the reply drives online status.
+		/// </summary>
+		private void PollStatus()
+		{
+			var frame = BuildFrameFor(StatusSenderId, 0x01, 0x16);
+			frame[14] = 0x01;
+			SendBytes(frame);
+		}
+
+		private static bool IsHeartbeat(byte[] bytes)
+		{
+			return bytes != null && bytes.SequenceEqual(HeartbeatFrame);
 		}
 
 		private void SocketOnConnectionChange(object sender, GenericSocketStatusChageEventArgs genericSocketStatusChageEventArgs)
 		{
 			if (genericSocketStatusChageEventArgs.Client.IsConnected)
 			{
-				// For socket-based transports, maintain existing behavior on connect
-				// (no-op for heartbeat, which now runs continuously once started).
+				// Polls sent before the socket connected were lost; refresh feedback now rather
+				// than waiting a full poll interval
+				PollStatus();
 				return;
 			}
 
-			// On socket disconnect, clear feedback. Heartbeat now runs
+			// On socket disconnect, drop any partial frame and clear feedback. Heartbeat now runs
 			// continuously and is only stopped during device disposal.
+			_frameBuffer.Clear();
 			ResetFakeFeedback();
 		}
 
@@ -132,17 +255,6 @@ namespace PepperDash.Essentials.Plugins
 			// Keep the existing online feedback behavior.
 			CommunicationMonitor.IsOnlineFeedback.FireUpdate();
 		}
-
-		private object ProcessQueue(object obj)
-		{
-			while (!_myQueue.IsEmpty)
-			{
-				var myResponse = _myQueue.Dequeue();
-
-				this.LogVerbose("ProcessQueue: {Response}", myResponse);
-			}
-			return null;
-		}	
 
 		public int InputNumber
         {
@@ -248,9 +360,6 @@ namespace PepperDash.Essentials.Plugins
 
 				lock (_inputFeedbackLock)
 				{
-					// Clear existing state
-					_inputFeedback.Clear();
-
 					// We support up to 7 inputs on digital joins 11-17
 					const int maxInputs = 7;
 
@@ -259,16 +368,9 @@ namespace PepperDash.Essentials.Plugins
 						var inputNumber = i + 1;
 						var isVisible = !IsInputHidden(inputNumber);
 						var isActive = isVisible && (data - 1) == i && data >= 1 && data <= maxInputs;
-						_inputFeedback.Add(isActive);
 
 						var join = (uint)(_joinMap.InputSelectOffset.JoinNumber + i);
 						_trilist.BooleanInput[join].BoolValue = isActive;
-					}
-
-					// Fire any external BoolFeedbacks that depend on this list
-					foreach (var item in InputFeedback)
-					{
-						item.FireUpdate();
 					}
 				}
 			}
@@ -304,6 +406,8 @@ namespace PepperDash.Essentials.Plugins
 			trilist.SetSigTrueAction(joinMap.PowerOff.JoinNumber, PowerOff);
 			trilist.SetUShortSigAction(joinMap.Preset.JoinNumber, RecallPreset); 
 			trilist.SetUShortSigAction(joinMap.Brightness.JoinNumber, SetBrightness);
+			BrightnessFeedback.LinkInputSig(trilist.UShortInput[joinMap.Brightness.JoinNumber]);
+			ModelFeedback.LinkInputSig(trilist.StringInput[joinMap.Model.JoinNumber]);
 
 			// digital input-select buttons (11-17) mapped to logical buttons 1-7,
 			// honoring any hideInput settings and executing configured actions
@@ -348,6 +452,9 @@ namespace PepperDash.Essentials.Plugins
                 if (InputNumberFeedback != null)
                     InputNumberFeedback.FireUpdate();
 
+				BrightnessFeedback.FireUpdate();
+				ModelFeedback.FireUpdate();
+
 				UpdateBooleanFeedback(InputNumber);
 
 				UpdatePowerFeedback();
@@ -378,14 +485,7 @@ namespace PepperDash.Essentials.Plugins
 
 		private void SelectInput(ushort input)
 		{
-			// Map Crestron analog (1-7) to device-specific input codes
-			// 1: HDMI   -> 0x10
-			// 2: DVI    -> 0x01
-			// 3: DVI-2  -> 0x02
-			// 4: DVI-3  -> 0x03
-			// 5: DVI-4  -> 0x04
-			// 6: SDI    -> 0x20
-			// 7: SDI-2  -> 0x21
+			// Map Crestron analog (1-7) to the sender's input code (see GetInputCode)
 			if (input < 1 || input > 7)
 			{
 				InputNumber = 0;
@@ -394,45 +494,63 @@ namespace PepperDash.Essentials.Plugins
 
 			InputNumber = input;
 
-			byte inputCode;
-			switch (input)
+			var inputCode = GetInputCode(input);
+
+			// Setting Input Video Source (0x33): layer 0 (main), then the input code.
+			// The switch only takes effect after a Batch Operation (0x6f) frame.
+			SendBytes(BuildFrame(0x33, 0x00, inputCode));
+			SendBytes(BuildFrame(0x6F));
+		}
+
+		/// <summary>
+		/// Protocol input code for input 1-7: friendlyNames[].inputCode if set, otherwise the Z6 default.
+		/// </summary>
+		private byte GetInputCode(int input)
+		{
+			var friendly = GetFriendlyConfigForButton(input);
+			if (friendly != null && friendly.InputCode.HasValue)
+				return friendly.InputCode.Value;
+
+			return DefaultInputCodes[input - 1];
+		}
+
+		/// <summary>
+		/// Input number 1-7 whose code matches, or 0 if none does.
+		/// </summary>
+		private int GetInputNumber(byte inputCode)
+		{
+			for (var input = 1; input <= DefaultInputCodes.Length; input++)
 			{
-				case 1:
-					inputCode = 0x10;
-					break;
-				case 2:
-					inputCode = 0x01;
-					break;
-				case 3:
-					inputCode = 0x02;
-					break;
-				case 4:
-					inputCode = 0x03;
-					break;
-				case 5:
-					inputCode = 0x04;
-					break;
-				case 6:
-					inputCode = 0x20;
-					break;
-				case 7:
-					inputCode = 0x21;
-					break;
-				default:
-					inputCode = 0x00;
-					break;
+				if (GetInputCode(input) == inputCode)
+					return input;
 			}
 
-			var command = new byte[]
-			{
-				0x33, 0x00, 0x12, 0x00, 0x00, 0x00,
-				(byte)(_id >> 8), (byte)(_id & 0xFF), 0xFF,
-				0x00, 0x00, 0x00, 0x00,
-				0x00, 0x00, 0x00,
-				inputCode
-			};
+			return 0;
+		}
 
-			SendBytes(command);
+		/// <summary>
+		/// Builds a Class A protocol frame: command byte, total frame length (little-endian),
+		/// sender id (little-endian), 0xFF, zero padding to 16 bytes, then the payload.
+		/// </summary>
+		private byte[] BuildFrame(byte command, params byte[] payload)
+		{
+			return BuildFrameFor(_id, command, payload);
+		}
+
+		private static byte[] BuildFrameFor(ushort senderId, byte command, params byte[] payload)
+		{
+			var length = 16 + payload.Length;
+			var frame = new byte[length];
+
+			frame[0] = command;
+			frame[2] = (byte)(length & 0xFF);
+			frame[3] = (byte)(length >> 8);
+			frame[6] = (byte)(senderId & 0xFF);
+			frame[7] = (byte)(senderId >> 8);
+			frame[8] = 0xFF;
+			Array.Copy(payload, 0, frame, 16, payload.Length);
+
+			return frame;
 		}
 
 		public void SendBytes(byte[] command)
@@ -445,53 +563,77 @@ namespace PepperDash.Essentials.Plugins
 
 			if (!Communications.IsConnected)
 			{
-				this.LogVerbose("SendBytes: communications not connected, attempting connection...");
-				Communications.Connect();
+				TryReconnect();
 			}
 
-			this.LogVerbose("SendBytes: {Command}", BitConverter.ToString(command));
+			if (!IsHeartbeat(command))
+			{
+				this.LogVerbose("SendBytes: {Command}", BitConverter.ToString(command));
+			}
+
 			Communications.SendBytes(command);
+		}
+
+		/// <summary>
+		/// Attempts a reconnect at most once per ReconnectThrottleMs, and only when the
+		/// client is not already reconnecting on its own (autoReconnect in config).
+		/// </summary>
+		private void TryReconnect()
+		{
+			var autoReconnect = Communications as IAutoReconnect;
+			if (autoReconnect != null && autoReconnect.AutoReconnect)
+				return;
+
+			if ((DateTime.UtcNow - _lastConnectAttempt).TotalMilliseconds < ReconnectThrottleMs)
+				return;
+
+			_lastConnectAttempt = DateTime.UtcNow;
+			this.LogVerbose("SendBytes: communications not connected, attempting connection...");
+			Communications.Connect();
 		}
 
 		private void SendHeartbeat()
 		{
-			//var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
-			var command = new byte[] { 0x99, 0x99, 0x04, 0x00 };
-
-			SendBytes(command);
+			SendBytes(HeartbeatFrame);
 		}
 
 		public void SetBrightness(ushort brightness)
 		{
-			// Scale Crestron ushort 0-65535 to a float 0.00-1.00
-			// Round to 2 decimal places so key values map as:
-			//  65535 -> 1.00f, 49149 -> 0.75f, 32767 -> 0.50f, 16383 -> 0.25f
-			var brightnessPercent = (float)Math.Round(brightness / 65535.0f, 2);
+			// The protocol takes any float from 0 to 1.0, so send the full SIMPL resolution
+			var brightnessPercent = brightness / 65535.0f;
+
+			_brightness = brightness;
+			BrightnessFeedback.FireUpdate();
 
 			this.LogVerbose("SetBrightness: Level {Level} Percent {Percent}", brightness, brightnessPercent * 100);
 
 			var brightnessBytes = BitConverter.GetBytes(brightnessPercent);
 
-			var commandBase = new byte[]
-            {
-                0x21, 0x00, 0x14, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00
-            };
-
-			var command = commandBase.Concat(brightnessBytes).ToArray();
-
-			SendBytes(command);
+			SendBytes(BuildFrame(0x21, brightnessBytes));
 		}
 
 		public void RecallPreset(ushort preset)
 		{
-			var command = new byte[]
-            {
-                0x74, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, (byte)(preset - 1) // per manufacturer documentation, preset value is 0-based, but SIMPL uses 1-based
-            };
-			
-			SendBytes(command);
+			// 0 means "no preset" (SIMPL analogs start at and are often cleared to 0); ignore it silently
+			if (preset == 0)
+				return;
+
+			// The protocol supports presets 1-16
+			if (preset > 16)
+			{
+				this.LogWarning("RecallPreset: preset {Preset} is out of range (1-16), ignored", preset);
+				return;
+			}
+
+			// Model is unknown until the first status reply; send anyway rather than block presets
+			if (_modelCode.HasValue && !ColorlightModels.SupportsPresets(_modelCode.Value))
+			{
+				this.LogWarning("RecallPreset: {Model} does not support presets, ignored", _model);
+				return;
+			}
+
+			// per manufacturer documentation, preset value is 0-based, but SIMPL uses 1-based
+			SendBytes(BuildFrame(0x74, (byte)(preset - 1)));
 		}
 
 		/// <summary>
@@ -503,13 +645,11 @@ namespace PepperDash.Essentials.Plugins
 			_powerIsOff = false;
 			UpdatePowerFeedback();
 
-			var command = new byte[]
-            {
-                0x11, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x01
-            };
+			// Blackout (0x11): 0x01 disables blackout (show on)
+			SendBytes(BuildFrame(0x11, 0x01));
 
-			SendBytes(command);
+			if (_powerOnBrightness.HasValue)
+				SetBrightness(_powerOnBrightness.Value);
 		}
 
 		/// <summary>
@@ -521,13 +661,8 @@ namespace PepperDash.Essentials.Plugins
 			_powerIsOff = true;
 			UpdatePowerFeedback();
 
-			var command = new byte[]
-            {
-                0x11, 0x00, 0x11, 0x00, 0x00, 0x00, (byte) (_id >> 8), (byte) (_id & 0xFF), 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00
-            };
-
-			SendBytes(command);
+			// Blackout (0x11): 0x00 enables blackout (show off)
+			SendBytes(BuildFrame(0x11, 0x00));
 		}
 
 		/// <summary>
@@ -539,6 +674,7 @@ namespace PepperDash.Essentials.Plugins
 		public void Dispose()
 		{
 			StopHeartbeatTimer();
+			_statusMonitor.Stop();
 		}
 	}
 }
